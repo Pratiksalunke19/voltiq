@@ -77,14 +77,13 @@ contract ReactiveLiquidationTest is Test {
         // Dummy data for price and timestamp (non-indexed)
         bytes memory data = abi.encode(uint256(1200e18), block.timestamp);
 
-        // We expect the Liquidated event to be emitted
-        vm.expectEmit(true, false, false, true, address(pool));
-        emit ILendingPool.Liquidated(user, 0, 0);
-
         vm.prank(SOMNIA_PRECOMPILE);
         engine.onEvent(address(oracle), topics, data);
 
-        console2.log("Reactive liquidation triggered successfully");
+        pos = positionManager.getPosition(user);
+        assertTrue(pos.healthFactor >= 1e18, "HF should be restored to >= 1");
+
+        console2.log("Reactive liquidation triggered successfully. New HF:", pos.healthFactor);
     }
 
     function test_ReactiveLiquidation_SkipsIfSafe() public {

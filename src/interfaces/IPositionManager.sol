@@ -20,4 +20,14 @@ interface IPositionManager {
      * @param user The address of the user
      */
     function updatePosition(address user) external;
+
+    /**
+     * @notice Executes a partial liquidation to restore health factor to > 1
+     * @param user The address of the user
+     * @return debtToRepayUSD The USD value of debt repaid
+     * @return collateralToSeizeUSD The USD value of collateral seized
+     */
+    function executePartialLiquidation(address user)
+        external
+        returns (uint256 debtToRepayUSD, uint256 collateralToSeizeUSD);
 }

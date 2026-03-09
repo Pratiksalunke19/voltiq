@@ -68,12 +68,9 @@ contract LendingPool is ILendingPool {
             revert LendingPool__PositionIsSafe();
         }
 
-        // Simple liquidation logic for MVP Stage 2:
-        // Liquidator repays all debt, takes all collateral?
-        // No, let's keep it simple: liquidator pays 1 unit of debt, gets 1.05 units of collateral value.
-        // For now, let's just emit the event and clear state to demonstrate.
-        // Real logic will be in Stage 5.
+        // Execute partial liquidation
+        (uint256 debtCoveredUSD, uint256 collateralLiquidatedUSD) = I_POSITION_MANAGER.executePartialLiquidation(user);
 
-        emit Liquidated(user, 0, 0);
+        emit Liquidated(user, collateralLiquidatedUSD, debtCoveredUSD);
     }
 }
