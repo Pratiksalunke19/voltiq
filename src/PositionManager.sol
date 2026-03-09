@@ -7,15 +7,15 @@ import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 contract PositionManager is IPositionManager {
     // STATE VARIABLES
-    IPriceOracle public immutable priceOracle;
+    IPriceOracle public immutable I_PRICE_ORACLE;
 
     // User -> Asset -> Amount
-    mapping(address => mapping(address => uint256)) public userCollateral;
-    mapping(address => mapping(address => uint256)) public userDebt;
+    mapping(address => mapping(address => uint256)) public sUserCollateral;
+    mapping(address => mapping(address => uint256)) public sUserDebt;
 
     // Supported assets (for HF calculation)
-    address[] public collateralAssets;
-    address[] public debtAssets;
+    address[] public sCollateralAssets;
+    address[] public sDebtAssets;
 
     // CONSTANTS
     uint256 public constant LIQUIDATION_THRESHOLD = 8000; // 80% (basis points)
@@ -23,32 +23,32 @@ contract PositionManager is IPositionManager {
 
     // CONSTRUCTOR
     constructor(address _priceOracle) {
-        priceOracle = IPriceOracle(_priceOracle);
+        I_PRICE_ORACLE = IPriceOracle(_priceOracle);
     }
 
     // EXTERNAL FUNCTIONS
     function addCollateralAsset(address asset) external {
-        collateralAssets.push(asset);
+        sCollateralAssets.push(asset);
     }
 
     function addDebtAsset(address asset) external {
-        debtAssets.push(asset);
+        sDebtAssets.push(asset);
     }
 
     function recordDeposit(address user, address asset, uint256 amount) external {
-        userCollateral[user][asset] += amount;
+        sUserCollateral[user][asset] += amount;
     }
 
     function recordWithdraw(address user, address asset, uint256 amount) external {
-        userCollateral[user][asset] -= amount;
+        sUserCollateral[user][asset] -= amount;
     }
 
     function recordBorrow(address user, address asset, uint256 amount) external {
-        userDebt[user][asset] += amount;
+        sUserDebt[user][asset] += amount;
     }
 
     function recordRepay(address user, address asset, uint256 amount) external {
-        userDebt[user][asset] -= amount;
+        sUserDebt[user][asset] -= amount;
     }
 
     function updatePosition(address user) external {
@@ -58,20 +58,20 @@ contract PositionManager is IPositionManager {
     // PUBLIC FUNCTIONS
     function getPosition(address user) public view returns (Position memory) {
         uint256 totalCollateralValue = 0;
-        for (uint256 i = 0; i < collateralAssets.length; i++) {
-            address asset = collateralAssets[i];
-            uint256 amount = userCollateral[user][asset];
+        for (uint256 i = 0; i < sCollateralAssets.length; i++) {
+            address asset = sCollateralAssets[i];
+            uint256 amount = sUserCollateral[user][asset];
             if (amount > 0) {
-                totalCollateralValue += (amount * priceOracle.getPrice(asset)) / 1e18;
+                totalCollateralValue += (amount * I_PRICE_ORACLE.getPrice(asset)) / 1e18;
             }
         }
 
         uint256 totalBorrowValue = 0;
-        for (uint256 i = 0; i < debtAssets.length; i++) {
-            address asset = debtAssets[i];
-            uint256 amount = userDebt[user][asset];
+        for (uint256 i = 0; i < sDebtAssets.length; i++) {
+            address asset = sDebtAssets[i];
+            uint256 amount = sUserDebt[user][asset];
             if (amount > 0) {
-                totalBorrowValue += (amount * priceOracle.getPrice(asset)) / 1e18;
+                totalBorrowValue += (amount * I_PRICE_ORACLE.getPrice(asset)) / 1e18;
             }
         }
 

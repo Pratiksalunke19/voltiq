@@ -16,25 +16,25 @@ contract LendingPool is ILendingPool {
     using SafeERC20 for IERC20;
 
     // STATE VARIABLES
-    PositionManager public immutable positionManager;
+    PositionManager public immutable I_POSITION_MANAGER;
 
     // CONSTRUCTOR
     constructor(address _positionManager) {
-        positionManager = PositionManager(_positionManager);
+        I_POSITION_MANAGER = PositionManager(_positionManager);
     }
 
     // EXTERNAL FUNCTIONS
     function deposit(address asset, uint256 amount) external {
         IERC20(asset).safeTransferFrom(msg.sender, address(this), amount);
-        positionManager.recordDeposit(msg.sender, asset, amount);
+        I_POSITION_MANAGER.recordDeposit(msg.sender, asset, amount);
         emit Deposited(msg.sender, asset, amount);
     }
 
     function withdraw(address asset, uint256 amount) external {
-        positionManager.recordWithdraw(msg.sender, asset, amount);
+        I_POSITION_MANAGER.recordWithdraw(msg.sender, asset, amount);
 
         // Check health factor after withdrawal
-        IPositionManager.Position memory pos = positionManager.getPosition(msg.sender);
+        IPositionManager.Position memory pos = I_POSITION_MANAGER.getPosition(msg.sender);
         if (pos.healthFactor < 1e18) {
             revert LendingPool__HealthFactorTooLow();
         }
@@ -44,10 +44,10 @@ contract LendingPool is ILendingPool {
     }
 
     function borrow(address asset, uint256 amount) external {
-        positionManager.recordBorrow(msg.sender, asset, amount);
+        I_POSITION_MANAGER.recordBorrow(msg.sender, asset, amount);
 
         // Check health factor after borrow
-        IPositionManager.Position memory pos = positionManager.getPosition(msg.sender);
+        IPositionManager.Position memory pos = I_POSITION_MANAGER.getPosition(msg.sender);
         if (pos.healthFactor < 1e18) {
             revert LendingPool__HealthFactorTooLow();
         }
@@ -58,12 +58,12 @@ contract LendingPool is ILendingPool {
 
     function repay(address asset, uint256 amount) external {
         IERC20(asset).safeTransferFrom(msg.sender, address(this), amount);
-        positionManager.recordRepay(msg.sender, asset, amount);
+        I_POSITION_MANAGER.recordRepay(msg.sender, asset, amount);
         emit Repaid(msg.sender, asset, amount);
     }
 
     function liquidate(address user) external {
-        IPositionManager.Position memory pos = positionManager.getPosition(user);
+        IPositionManager.Position memory pos = I_POSITION_MANAGER.getPosition(user);
         if (pos.healthFactor >= 1e18) {
             revert LendingPool__PositionIsSafe();
         }
