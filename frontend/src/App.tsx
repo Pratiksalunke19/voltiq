@@ -78,19 +78,15 @@ function App() {
     }
   };
 
-  const handleDevSetup = async () => {
+  const handleDeposit = async () => {
     if (!walletAddress || !provider) return;
     try {
       const signer = await provider.getSigner();
       
       const weth = new ethers.Contract(CONTRACT_ADDRESSES['WETH'], ABIS['MockERC20'], signer);
-      
-      console.log("Minting WETH for testing...");
-      let tx = await weth.mint(walletAddress, ethers.parseEther('10'));
-      await tx.wait();
 
-      console.log("Approving WETH...");
-      tx = await weth.approve(CONTRACT_ADDRESSES['LendingPool'], ethers.MaxUint256);
+      console.log("Approving WETH for Deposit...");
+      let tx = await weth.approve(CONTRACT_ADDRESSES['LendingPool'], ethers.MaxUint256);
       await tx.wait();
 
       const lendingPool = new ethers.Contract(CONTRACT_ADDRESSES['LendingPool'], ABIS['LendingPool'], signer);
@@ -101,7 +97,7 @@ function App() {
       console.log("Fetching new data...");
       await fetchUserData(walletAddress, provider);
     } catch(err) {
-      console.error("Setup failed!", err);
+      console.error("Deposit failed!", err);
     }
   };
 
@@ -212,7 +208,7 @@ function App() {
             </div>
 
             <div className="action-buttons mt-4">
-              <button className="btn-primary flex-1" onClick={handleDevSetup}>Test: Deposit 1 WETH</button>
+              <button className="btn-primary flex-1" onClick={handleDeposit}>Deposit 1 WETH</button>
               <button className="btn-secondary flex-1" onClick={handleDevBorrow}>Test: Borrow 500 USDC</button>
             </div>
           </div>
