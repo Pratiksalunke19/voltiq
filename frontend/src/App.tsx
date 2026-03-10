@@ -3,7 +3,9 @@ import { Wallet, Activity, Zap, RefreshCcw, ShieldAlert, ShieldCheck } from 'luc
 import { ethers } from 'ethers';
 import './index.css';
 
-// Mock Data for UI presentation
+import { CONTRACT_ADDRESSES, ABIS } from './contracts';
+
+// Mock Data fallback
 const MOCK_DATA = {
   healthFactor: 1.15,
   collateralUsd: 2500.50,
@@ -17,19 +19,55 @@ function App() {
   const [walletAddress, setWalletAddress] = useState<string | null>(null);
   const [isConnecting, setIsConnecting] = useState(false);
   const [data, setData] = useState(MOCK_DATA);
+  const [provider, setProvider] = useState<ethers.BrowserProvider | null>(null);
 
   // Determine health status
   let healthStatus = 'safe';
   if (data.healthFactor < 1.05) healthStatus = 'danger';
   else if (data.healthFactor < 1.3) healthStatus = 'warning';
 
+  const fetchUserData = async (address: string, provider: ethers.BrowserProvider) => {
+    try {
+      const positionManager = new ethers.Contract(
+        CONTRACT_ADDRESSES['PositionManager'],
+        ABIS['PositionManager'],
+        provider
+      );
+      
+      const pos = await positionManager.getPosition(address);
+      
+      // Formatting from 18 decimals
+      const collateral = Number(ethers.formatUnits(pos.collateralValue.toString(), 18));
+      const borrow = Number(ethers.formatUnits(pos.borrowValue.toString(), 18));
+      
+      // Format HF if borrow > 0, otherwise it's type(uint256).max which is safe
+      let hf = 999;
+      if (borrow > 0 && pos.healthFactor) {
+        hf = Number(ethers.formatUnits(pos.healthFactor.toString(), 18));
+      }
+
+      setData(prev => ({
+        ...prev,
+        healthFactor: hf === 999 ? 0 : hf,
+        collateralUsd: collateral,
+        borrowUsd: borrow
+      }));
+    } catch(err) {
+      console.error("Failed fetching user data", err);
+    }
+  };
+
   const connectWallet = async () => {
     setIsConnecting(true);
     try {
+      // @ts-ignore
       if (window.ethereum) {
-        const provider = new ethers.BrowserProvider(window.ethereum);
-        const accounts = await provider.send("eth_requestAccounts", []);
+        // @ts-ignore
+        const _provider = new ethers.BrowserProvider(window.ethereum);
+        setProvider(_provider);
+        const accounts = await _provider.send("eth_requestAccounts", []);
         setWalletAddress(accounts[0]);
+        await fetchUserData(accounts[0], _provider);
       } else {
         alert("Please install MetaMask to use Voltiq!");
       }
@@ -37,6 +75,33 @@ function App() {
       console.error(error);
     } finally {
       setIsConnecting(false);
+    }
+  };
+
+  const handleDevSetup = async () => {
+    if (!walletAddress || !provider) return;
+    try {
+      const signer = await provider.getSigner();
+      
+      const weth = new ethers.Contract(CONTRACT_ADDRESSES['WETH'], ABIS['MockERC20'], signer);
+      
+      console.log("Minting WETH for testing...");
+      let tx = await weth.mint(walletAddress, ethers.parseEther('10'));
+      await tx.wait();
+
+      console.log("Approving WETH...");
+      tx = await weth.approve(CONTRACT_ADDRESSES['LendingPool'], ethers.MaxUint256);
+      await tx.wait();
+
+      const lendingPool = new ethers.Contract(CONTRACT_ADDRESSES['LendingPool'], ABIS['LendingPool'], signer);
+      console.log("Depositing 1 WETH...");
+      tx = await lendingPool.deposit(CONTRACT_ADDRESSES['WETH'], ethers.parseEther('1'));
+      await tx.wait();
+      
+      console.log("Fetching new data...");
+      await fetchUserData(walletAddress, provider);
+    } catch(err) {
+      console.error("Setup failed!", err);
     }
   };
 
@@ -122,7 +187,7 @@ function App() {
             </div>
 
             <div className="action-buttons mt-4">
-              <button className="btn-primary flex-1">Add Collateral</button>
+              <button className="btn-primary flex-1" onClick={handleDevSetup}>Test: Deposit 1 WETH</button>
               <button className="btn-secondary flex-1">Repay Debt</button>
             </div>
           </div>

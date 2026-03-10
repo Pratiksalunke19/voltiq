@@ -3,6 +3,7 @@ pragma solidity ^0.8.20;
 
 import {Script} from "forge-std/Script.sol";
 import {MockChainlinkAggregator} from "../test/mocks/MockChainlinkAggregator.sol";
+import {MockERC20} from "../test/mocks/MockERC20.sol";
 
 contract HelperConfig is Script {
     struct NetworkConfig {
@@ -62,12 +63,15 @@ contract HelperConfig is Script {
         vm.startBroadcast();
         MockChainlinkAggregator ethUsdFeed = new MockChainlinkAggregator(2000e8, 8);
         MockChainlinkAggregator btcUsdFeed = new MockChainlinkAggregator(60000e8, 8);
+        MockERC20 mockWeth = new MockERC20("Wrapped ETH", "WETH");
+        MockERC20 mockWbtc = new MockERC20("Wrapped BTC", "WBTC");
+        MockERC20 mockUsdc = new MockERC20("USDC", "USDC");
         vm.stopBroadcast();
 
         return NetworkConfig({
-            weth: address(0x1), // Mock WETH
-            wbtc: address(0x2), // Mock WBTC
-            usdc: address(0x3), // Mock USDC
+            weth: address(mockWeth),
+            wbtc: address(mockWbtc),
+            usdc: address(mockUsdc),
             ethUsdPriceFeed: address(ethUsdFeed),
             btcUsdPriceFeed: address(btcUsdFeed)
         });
