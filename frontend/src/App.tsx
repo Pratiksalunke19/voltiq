@@ -48,7 +48,7 @@ function App() {
 
       setData(prev => ({
         ...prev,
-        healthFactor: hf === 999 ? 0 : hf,
+        healthFactor: hf,
         collateralUsd: collateral,
         borrowUsd: borrow
       }));
@@ -102,6 +102,29 @@ function App() {
       await fetchUserData(walletAddress, provider);
     } catch(err) {
       console.error("Setup failed!", err);
+    }
+  };
+
+  const handleDevBorrow = async () => {
+    if (!walletAddress || !provider) return;
+    try {
+      const signer = await provider.getSigner();
+
+      // Give LendingPool 100,000 USDC liquidity so we can simulate borrowing
+      const usdc = new ethers.Contract(CONTRACT_ADDRESSES['USDC'], ABIS['MockERC20'], signer);
+      console.log("Funding LendingPool with USDC liquidity...");
+      let tx = await usdc.mint(CONTRACT_ADDRESSES['LendingPool'], ethers.parseEther('100000'));
+      await tx.wait();
+
+      const lendingPool = new ethers.Contract(CONTRACT_ADDRESSES['LendingPool'], ABIS['LendingPool'], signer);
+      console.log("Borrowing 500 USDC...");
+      tx = await lendingPool.borrow(CONTRACT_ADDRESSES['USDC'], ethers.parseEther('500'));
+      await tx.wait();
+      
+      console.log("Fetching new data...");
+      await fetchUserData(walletAddress, provider);
+    } catch(err) {
+      console.error("Borrow failed!", err);
     }
   };
 
@@ -164,7 +187,9 @@ function App() {
             <div className="health-factor-section">
               <div className="hf-label">
                 <span>Health Factor</span>
-                <span className={`hf-value status-${healthStatus}`}>{data.healthFactor.toFixed(2)}</span>
+                <span className={`hf-value status-${healthStatus}`}>
+                  {data.borrowUsd === 0 ? '∞' : data.healthFactor.toFixed(2)}
+                </span>
               </div>
               <div className="progress-bg mt-2">
                 <div 
@@ -188,7 +213,7 @@ function App() {
 
             <div className="action-buttons mt-4">
               <button className="btn-primary flex-1" onClick={handleDevSetup}>Test: Deposit 1 WETH</button>
-              <button className="btn-secondary flex-1">Repay Debt</button>
+              <button className="btn-secondary flex-1" onClick={handleDevBorrow}>Test: Borrow 500 USDC</button>
             </div>
           </div>
 

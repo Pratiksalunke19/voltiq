@@ -22,6 +22,7 @@ contract DeployLendingPool is Script {
         ChainlinkPriceOracle oracle = new ChainlinkPriceOracle();
         oracle.setPriceFeed(activeConfig.weth, activeConfig.ethUsdPriceFeed);
         oracle.setPriceFeed(activeConfig.wbtc, activeConfig.btcUsdPriceFeed);
+        oracle.setPriceFeed(activeConfig.usdc, activeConfig.usdcUsdPriceFeed);
 
         // 2. Deploy Position Manager
         PositionManager positionManager = new PositionManager(address(oracle));

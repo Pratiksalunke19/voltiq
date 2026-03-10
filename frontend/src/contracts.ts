@@ -1,14 +1,14 @@
 
 // Auto-generated file from deployment
 export const CONTRACT_ADDRESSES = {
-  "MockChainlinkAggregator": "0x2842cfc0219cafdf5e7794e84656e9d21a0be0fd",
-  "WETH": "0x156aaf0ac1f6f90c87fb2f480b492266a0e683cf",
-  "WBTC": "0x84b8255402b1a73d9f7820f9c5d2334cc999ef9e",
-  "USDC": "0x16440cf9e316e93cb7ea735607c010312fbbcb46",
-  "ChainlinkPriceOracle": "0x228c91a2f791400220a6027e0b75fa65aa203ca0",
-  "PositionManager": "0xc68201caf28d40acfc641ff39c574b37873b4b18",
-  "LendingPool": "0x626f0f8c5d154b21718ca2ecd07fcd6655c1152b",
-  "ReactiveLiquidationEngine": "0x03cbfadbf6602ea59fad6692b3334a78c041909d"
+  "MockChainlinkAggregator": "0x39948f7187c424b1d798d6637945540e4d5be009",
+  "WETH": "0x0b30666cfb4cf9210655f5926b15c4a94cd8e1f9",
+  "WBTC": "0x80959be9aabff3972fc0d63fcba9b8db498759a3",
+  "USDC": "0xfdb3890f33bfc8b10d0270bbe7a5dd6636529118",
+  "ChainlinkPriceOracle": "0x1935f35078b83a9f255801fe57790083f219c533",
+  "PositionManager": "0x58bb117c35fc81e8bc416ca119020c08964e276c",
+  "LendingPool": "0x95a392607273e3cb29392ffe12c2c8f79b26f66a",
+  "ReactiveLiquidationEngine": "0x526d83f81913edbb204c2ea938e2ee6e0a53c62d"
 };
 
 export const ABIS = {
