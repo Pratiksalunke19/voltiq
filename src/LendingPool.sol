@@ -62,6 +62,7 @@ contract LendingPool is ILendingPool {
         emit Repaid(msg.sender, asset, amount);
     }
 
+    // should the reactivity only be able to liquidate?
     function liquidate(address user) external {
         IPositionManager.Position memory pos = I_POSITION_MANAGER.getPosition(user);
         if (pos.healthFactor >= 1e18) {

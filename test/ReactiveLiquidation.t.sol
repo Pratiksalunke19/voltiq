@@ -98,15 +98,53 @@ contract ReactiveLiquidationTest is Test {
         topics[1] = bytes32(uint256(uint160(address(weth))));
         bytes memory data = abi.encode(uint256(2000e18), block.timestamp);
 
-        // No liquidation should occur
-        // If we want to be sure, we can check that no event was emitted, but the try/catch in engine handles it anyway.
-        // Liquidation script in pool has a check.
-
         vm.prank(SOMNIA_PRECOMPILE);
         engine.onEvent(address(oracle), topics, data);
 
         IPositionManager.Position memory pos = positionManager.getPosition(user);
         assert(pos.healthFactor >= 1e18);
+    }
+
+    function test_OnEvent_Paused() public {
+        engine.setPaused(true);
+        
+        // Price drops
+        oracle.setPrice(address(weth), 1000e18);
+        
+        bytes32[] memory topics = new bytes32[](2);
+        topics[0] = keccak256("PriceUpdated(address,uint256,uint256)");
+        topics[1] = bytes32(uint256(uint160(address(weth))));
+        bytes memory data = abi.encode(uint256(1000e18), block.timestamp);
+
+        vm.prank(SOMNIA_PRECOMPILE);
+        engine.onEvent(address(oracle), topics, data);
+        
+        // No liquidation should have happened because it's paused
+    }
+
+    function test_OnEvent_WrongEmitter() public {
+        bytes32[] memory topics = new bytes32[](2);
+        topics[0] = keccak256("PriceUpdated(address,uint256,uint256)");
+        topics[1] = bytes32(uint256(uint160(address(weth))));
+        bytes memory data = abi.encode(uint256(1000e18), block.timestamp);
+
+        vm.prank(SOMNIA_PRECOMPILE);
+        engine.onEvent(address(0xdead), topics, data);
+    }
+
+    function test_OnEvent_WrongTopic() public {
+        bytes32[] memory topics = new bytes32[](1);
+        topics[0] = keccak256("WrongEvent()");
+        bytes memory data = "";
+
+        vm.prank(SOMNIA_PRECOMPILE);
+        engine.onEvent(address(oracle), topics, data);
+    }
+
+    function test_SetPaused_OnlyOwner() public {
+        vm.prank(address(0xbeef));
+        vm.expectRevert(); // OwnableUnauthorizedAccount
+        engine.setPaused(true);
     }
 }
 

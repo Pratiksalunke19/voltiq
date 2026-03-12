@@ -72,4 +72,66 @@ contract LendingPoolTest is Test {
         pool.borrow(address(usdc), 1601e18);
         vm.stopPrank();
     }
+
+    function testRepay() public {
+        vm.startPrank(user);
+        pool.deposit(address(weth), 1e18);
+        pool.borrow(address(usdc), 500e18);
+        
+        usdc.approve(address(pool), 500e18);
+        pool.repay(address(usdc), 500e18);
+        vm.stopPrank();
+
+        IPositionManager.Position memory pos = positionManager.getPosition(user);
+        assertEq(pos.borrowValue, 0);
+    }
+
+    function testWithdraw() public {
+        vm.startPrank(user);
+        pool.deposit(address(weth), 1e18);
+        pool.withdraw(address(weth), 0.5e18);
+        vm.stopPrank();
+
+        IPositionManager.Position memory pos = positionManager.getPosition(user);
+        assertEq(pos.collateralValue, 1000e18);
+    }
+
+    function test_WithdrawTooMuch_Reverts() public {
+        vm.startPrank(user);
+        pool.deposit(address(weth), 1e18);
+        pool.borrow(address(usdc), 1000e18); // HF = 1.6
+
+        // Withdrawing another 0.5 ETH would drop collateral to 0.5 ETH ($1000)
+        // HF = (1000 * 0.8) / 1000 = 0.8 (Too low)
+        vm.expectRevert(LendingPool.LendingPool__HealthFactorTooLow.selector);
+        pool.withdraw(address(weth), 0.5e18);
+        vm.stopPrank();
+    }
+
+    function test_Liquidate_RevertsIfSafe() public {
+        vm.startPrank(user);
+        pool.deposit(address(weth), 1e18);
+        pool.borrow(address(usdc), 1000e18);
+        vm.stopPrank();
+
+        vm.expectRevert(LendingPool.LendingPool__PositionIsSafe.selector);
+        pool.liquidate(user);
+    }
+
+    function test_Liquidate_Success() public {
+        vm.startPrank(user);
+        pool.deposit(address(weth), 1e18); // $2000
+        pool.borrow(address(usdc), 1500e18); // $1500 (Limit $1600)
+        vm.stopPrank();
+
+        // Drop price to make it liquidatable
+        oracle.setPrice(address(weth), 1800e18);
+        // New Limit = (1800 * 0.8) = 1440. 1500 > 1440.
+        // HF = 1440 / 1500 = 0.96
+
+        pool.liquidate(user);
+
+        IPositionManager.Position memory pos = positionManager.getPosition(user);
+        assertTrue(pos.healthFactor >= 1e18);
+    }
 }
