@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 // OpenZeppelin Contracts (last updated v5.4.0) (access/manager/IAuthority.sol)
 
-pragma solidity >=0.4.16;
+pragma solidity 0.8.30;
 
 /**
  * @dev Standard interface for permissioning originally defined in Dappsys.

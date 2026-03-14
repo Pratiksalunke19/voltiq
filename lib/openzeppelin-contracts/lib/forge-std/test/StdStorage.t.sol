@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity >=0.7.0 <0.9.0;
+pragma solidity 0.8.30;
 
 import {stdStorage, StdStorage} from "../src/StdStorage.sol";
 import {Test} from "../src/Test.sol";

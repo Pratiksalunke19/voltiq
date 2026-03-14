@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 // OpenZeppelin Contracts (last updated v5.5.0) (token/ERC6909/ERC6909.sol)
 
-pragma solidity ^0.8.20;
+pragma solidity 0.8.30;
 
 import {IERC6909} from "../../interfaces/IERC6909.sol";
 import {Context} from "../../utils/Context.sol";

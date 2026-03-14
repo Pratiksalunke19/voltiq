@@ -42,3 +42,13 @@ mint:
 # Full setup: Deploy, Sync, and Mint
 setup: deploy sync
 	@echo "Setup complete. Don't forget to run 'make mint ADDR=<your_address>'"
+
+# Deploy to Somnia Testnet
+deploy-somnia:
+	@chmod +x deploy_somnia.sh
+	@./deploy_somnia.sh
+# mint some balance to lending pool
+
+# Sync Somnia addresses to frontend
+sync-somnia:
+	@node script/sync_somnia.js

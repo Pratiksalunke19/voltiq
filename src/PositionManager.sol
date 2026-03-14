@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.20;
+pragma solidity 0.8.30;
 
 import {IPositionManager} from "./interfaces/IPositionManager.sol";
 import {IPriceOracle} from "./interfaces/IPriceOracle.sol";
@@ -58,6 +58,14 @@ contract PositionManager is IPositionManager {
         // In this implementation, values are derived dynamically in getPosition
     }
 
+    struct LiquidationVars {
+        uint256 penalty;
+        uint256 num;
+        uint256 denom;
+        uint256 debtToRepayUSD;
+        uint256 collateralToSeizeUSD;
+    }
+
     function executePartialLiquidation(address user)
         external
         returns (uint256 debtToRepayUSD, uint256 collateralToSeizeUSD)
@@ -67,63 +75,70 @@ contract PositionManager is IPositionManager {
             revert PositionManager__PositionIsSafe();
         }
 
-        uint256 penalty = 500; // 5%
+        LiquidationVars memory vars;
+        vars.penalty = 500; // 5%
 
-        uint256 num = pos.borrowValue - (pos.collateralValue * LIQUIDATION_THRESHOLD / BASIS_POINTS_DIVISOR);
-        uint256 denom =
-            BASIS_POINTS_DIVISOR - ((BASIS_POINTS_DIVISOR + penalty) * LIQUIDATION_THRESHOLD / BASIS_POINTS_DIVISOR);
+        vars.num = pos.borrowValue - (pos.collateralValue * LIQUIDATION_THRESHOLD / BASIS_POINTS_DIVISOR);
+        vars.denom =
+            BASIS_POINTS_DIVISOR - ((BASIS_POINTS_DIVISOR + vars.penalty) * LIQUIDATION_THRESHOLD / BASIS_POINTS_DIVISOR);
 
-        debtToRepayUSD = (num * BASIS_POINTS_DIVISOR) / denom;
+        vars.debtToRepayUSD = (vars.num * BASIS_POINTS_DIVISOR) / vars.denom;
+        vars.debtToRepayUSD = (vars.debtToRepayUSD * 105) / 100;
 
-        // Add 5% buffer to ensure HF easily clears 1.0 threshold
-        debtToRepayUSD = (debtToRepayUSD * 105) / 100;
-
-        if (debtToRepayUSD > pos.borrowValue) {
-            debtToRepayUSD = pos.borrowValue;
+        if (vars.debtToRepayUSD > pos.borrowValue) {
+            vars.debtToRepayUSD = pos.borrowValue;
         }
 
-        collateralToSeizeUSD = (debtToRepayUSD * (BASIS_POINTS_DIVISOR + penalty)) / BASIS_POINTS_DIVISOR;
+        vars.collateralToSeizeUSD = (vars.debtToRepayUSD * (BASIS_POINTS_DIVISOR + vars.penalty)) / BASIS_POINTS_DIVISOR;
 
-        if (collateralToSeizeUSD > pos.collateralValue) {
-            collateralToSeizeUSD = pos.collateralValue;
+        if (vars.collateralToSeizeUSD > pos.collateralValue) {
+            vars.collateralToSeizeUSD = pos.collateralValue;
         }
 
-        uint256 remainingDebtToRepayUSD = debtToRepayUSD;
+        debtToRepayUSD = vars.debtToRepayUSD;
+        collateralToSeizeUSD = vars.collateralToSeizeUSD;
+
+        _repayDebt(user, vars.debtToRepayUSD);
+        _seizeCollateral(user, vars.collateralToSeizeUSD);
+    }
+
+    function _repayDebt(address user, uint256 remainingDebtUSD) internal {
         for (uint256 i = 0; i < sDebtAssets.length; i++) {
-            if (remainingDebtToRepayUSD == 0) break;
+            if (remainingDebtUSD == 0) break;
             address asset = sDebtAssets[i];
             uint256 amount = sUserDebt[user][asset];
             if (amount > 0) {
                 uint256 price = I_PRICE_ORACLE.getPrice(asset);
                 uint256 assetUsd = (amount * price) / 1e18;
 
-                if (assetUsd <= remainingDebtToRepayUSD) {
+                if (assetUsd <= remainingDebtUSD) {
                     sUserDebt[user][asset] = 0;
-                    remainingDebtToRepayUSD -= assetUsd;
+                    remainingDebtUSD -= assetUsd;
                 } else {
-                    uint256 amountToRepay = (remainingDebtToRepayUSD * 1e18) / price;
+                    uint256 amountToRepay = (remainingDebtUSD * 1e18) / price;
                     sUserDebt[user][asset] -= amountToRepay;
-                    remainingDebtToRepayUSD = 0;
+                    remainingDebtUSD = 0;
                 }
             }
         }
+    }
 
-        uint256 remainingCollateralToSeizeUSD = collateralToSeizeUSD;
+    function _seizeCollateral(address user, uint256 remainingCollateralUSD) internal {
         for (uint256 i = 0; i < sCollateralAssets.length; i++) {
-            if (remainingCollateralToSeizeUSD == 0) break;
+            if (remainingCollateralUSD == 0) break;
             address asset = sCollateralAssets[i];
             uint256 amount = sUserCollateral[user][asset];
             if (amount > 0) {
                 uint256 price = I_PRICE_ORACLE.getPrice(asset);
                 uint256 assetUsd = (amount * price) / 1e18;
 
-                if (assetUsd <= remainingCollateralToSeizeUSD) {
+                if (assetUsd <= remainingCollateralUSD) {
                     sUserCollateral[user][asset] = 0;
-                    remainingCollateralToSeizeUSD -= assetUsd;
+                    remainingCollateralUSD -= assetUsd;
                 } else {
-                    uint256 amountToSeize = (remainingCollateralToSeizeUSD * 1e18) / price;
+                    uint256 amountToSeize = (remainingCollateralUSD * 1e18) / price;
                     sUserCollateral[user][asset] -= amountToSeize;
-                    remainingCollateralToSeizeUSD = 0;
+                    remainingCollateralUSD = 0;
                 }
             }
         }

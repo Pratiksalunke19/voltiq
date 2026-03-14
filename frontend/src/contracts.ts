@@ -1,159 +1,16 @@
 
-// Auto-generated file from deployment
+// Auto-generated file from Somnia deployment
 export const CONTRACT_ADDRESSES = {
-  "MockChainlinkAggregator": "0x16440cf9e316e93cb7ea735607c010312fbbcb46",
-  "WETH": "0x228c91a2f791400220a6027e0b75fa65aa203ca0",
-  "WBTC": "0x48e20391df59cbb4b56776554a1e50ad08423363",
-  "USDC": "0xccf0a397185a16a8638b79d404d321611cc02b73",
-  "ChainlinkPriceOracle": "0xc68201caf28d40acfc641ff39c574b37873b4b18",
-  "PositionManager": "0x626f0f8c5d154b21718ca2ecd07fcd6655c1152b",
-  "LendingPool": "0xe5a85e0731897d493cc6ee6aa05c2a737a470a11",
-  "ReactiveLiquidationEngine": "0xc42f8bcc2918f726bbc3ed126787e36e12784e2c"
+  "WETH": "0x6f247A570d6A6DFb8f1fB6c22B99d2a2bB1D0B72",
+  "WBTC": "0x6cBe198deBc4c0a21EE392bd6a458C557e947e17",
+  "USDC": "0xed72A9CfEF30eAE8270C6D1B81f272406531D065",
+  "ORACLE": "0x5A7bCf24445B0622eFb462032C582990ade10b62",
+  "PositionManager": "0x51dff47951563Af8e9Ab56F9cdc45A9EeF209d4d",
+  "LendingPool": "0x76E3DeAc035bD0796595F2500FCD76676B649fDE",
+  "ReactiveLiquidationEngine": "0x8443c17d9951Aa6f5b14f0971d6219b570a2A72b"
 };
 
 export const ABIS = {
-  "MockChainlinkAggregator": [
-    {
-      "type": "constructor",
-      "inputs": [
-        {
-          "name": "initialPrice",
-          "type": "int256",
-          "internalType": "int256"
-        },
-        {
-          "name": "decimals_",
-          "type": "uint8",
-          "internalType": "uint8"
-        }
-      ],
-      "stateMutability": "nonpayable"
-    },
-    {
-      "type": "function",
-      "name": "decimals",
-      "inputs": [],
-      "outputs": [
-        {
-          "name": "",
-          "type": "uint8",
-          "internalType": "uint8"
-        }
-      ],
-      "stateMutability": "view"
-    },
-    {
-      "type": "function",
-      "name": "description",
-      "inputs": [],
-      "outputs": [
-        {
-          "name": "",
-          "type": "string",
-          "internalType": "string"
-        }
-      ],
-      "stateMutability": "pure"
-    },
-    {
-      "type": "function",
-      "name": "getRoundData",
-      "inputs": [
-        {
-          "name": "",
-          "type": "uint80",
-          "internalType": "uint80"
-        }
-      ],
-      "outputs": [
-        {
-          "name": "",
-          "type": "uint80",
-          "internalType": "uint80"
-        },
-        {
-          "name": "",
-          "type": "int256",
-          "internalType": "int256"
-        },
-        {
-          "name": "",
-          "type": "uint256",
-          "internalType": "uint256"
-        },
-        {
-          "name": "",
-          "type": "uint256",
-          "internalType": "uint256"
-        },
-        {
-          "name": "",
-          "type": "uint80",
-          "internalType": "uint80"
-        }
-      ],
-      "stateMutability": "view"
-    },
-    {
-      "type": "function",
-      "name": "latestRoundData",
-      "inputs": [],
-      "outputs": [
-        {
-          "name": "",
-          "type": "uint80",
-          "internalType": "uint80"
-        },
-        {
-          "name": "",
-          "type": "int256",
-          "internalType": "int256"
-        },
-        {
-          "name": "",
-          "type": "uint256",
-          "internalType": "uint256"
-        },
-        {
-          "name": "",
-          "type": "uint256",
-          "internalType": "uint256"
-        },
-        {
-          "name": "",
-          "type": "uint80",
-          "internalType": "uint80"
-        }
-      ],
-      "stateMutability": "view"
-    },
-    {
-      "type": "function",
-      "name": "setPrice",
-      "inputs": [
-        {
-          "name": "newPrice",
-          "type": "int256",
-          "internalType": "int256"
-        }
-      ],
-      "outputs": [],
-      "stateMutability": "nonpayable"
-    },
-    {
-      "type": "function",
-      "name": "version",
-      "inputs": [],
-      "outputs": [
-        {
-          "name": "",
-          "type": "uint256",
-          "internalType": "uint256"
-        }
-      ],
-      "stateMutability": "pure"
-    }
-  ],
   "MockERC20": [
     {
       "type": "constructor",
@@ -1465,6 +1322,148 @@ export const ABIS = {
       "type": "error",
       "name": "ReactiveLiquidationEngine__Paused",
       "inputs": []
+    }
+  ],
+  "MockChainlinkAggregator": [
+    {
+      "type": "constructor",
+      "inputs": [
+        {
+          "name": "initialPrice",
+          "type": "int256",
+          "internalType": "int256"
+        },
+        {
+          "name": "decimals_",
+          "type": "uint8",
+          "internalType": "uint8"
+        }
+      ],
+      "stateMutability": "nonpayable"
+    },
+    {
+      "type": "function",
+      "name": "decimals",
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "",
+          "type": "uint8",
+          "internalType": "uint8"
+        }
+      ],
+      "stateMutability": "view"
+    },
+    {
+      "type": "function",
+      "name": "description",
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "",
+          "type": "string",
+          "internalType": "string"
+        }
+      ],
+      "stateMutability": "pure"
+    },
+    {
+      "type": "function",
+      "name": "getRoundData",
+      "inputs": [
+        {
+          "name": "",
+          "type": "uint80",
+          "internalType": "uint80"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "",
+          "type": "uint80",
+          "internalType": "uint80"
+        },
+        {
+          "name": "",
+          "type": "int256",
+          "internalType": "int256"
+        },
+        {
+          "name": "",
+          "type": "uint256",
+          "internalType": "uint256"
+        },
+        {
+          "name": "",
+          "type": "uint256",
+          "internalType": "uint256"
+        },
+        {
+          "name": "",
+          "type": "uint80",
+          "internalType": "uint80"
+        }
+      ],
+      "stateMutability": "view"
+    },
+    {
+      "type": "function",
+      "name": "latestRoundData",
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "",
+          "type": "uint80",
+          "internalType": "uint80"
+        },
+        {
+          "name": "",
+          "type": "int256",
+          "internalType": "int256"
+        },
+        {
+          "name": "",
+          "type": "uint256",
+          "internalType": "uint256"
+        },
+        {
+          "name": "",
+          "type": "uint256",
+          "internalType": "uint256"
+        },
+        {
+          "name": "",
+          "type": "uint80",
+          "internalType": "uint80"
+        }
+      ],
+      "stateMutability": "view"
+    },
+    {
+      "type": "function",
+      "name": "setPrice",
+      "inputs": [
+        {
+          "name": "newPrice",
+          "type": "int256",
+          "internalType": "int256"
+        }
+      ],
+      "outputs": [],
+      "stateMutability": "nonpayable"
+    },
+    {
+      "type": "function",
+      "name": "version",
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "",
+          "type": "uint256",
+          "internalType": "uint256"
+        }
+      ],
+      "stateMutability": "pure"
     }
   ]
 };

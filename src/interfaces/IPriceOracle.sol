@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.20;
+pragma solidity 0.8.30;
 
 interface IPriceOracle {
     event PriceUpdated(address indexed asset, uint256 price, uint256 timestamp);

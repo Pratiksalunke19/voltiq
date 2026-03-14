@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: MIT
 
-pragma solidity ^0.8.24;
+pragma solidity 0.8.30;
 
 import {ReentrancyGuardTransient} from "../utils/ReentrancyGuardTransient.sol";
 import {ReentrancyAttack} from "./ReentrancyAttack.sol";

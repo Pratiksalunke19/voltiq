@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.20;
+pragma solidity 0.8.30;
 
 import {Script} from "forge-std/Script.sol";
 import {MockChainlinkAggregator} from "../test/mocks/MockChainlinkAggregator.sol";
@@ -31,9 +31,8 @@ contract HelperConfig is Script {
             activeNetworkConfig = getSepoliaEthConfig();
         } else if (block.chainid == 1) {
             activeNetworkConfig = getMainnetEthConfig();
-        } else {
-            activeNetworkConfig = getOrCreateAnvilEthConfig();
         }
+        // Decoupled mock deployment from constructor
     }
 
     function getSepoliaEthConfig() public pure returns (NetworkConfig memory) {
@@ -63,14 +62,12 @@ contract HelperConfig is Script {
             return activeNetworkConfig;
         }
 
-        vm.startBroadcast();
         MockChainlinkAggregator ethUsdFeed = new MockChainlinkAggregator(2000e8, 8);
         MockChainlinkAggregator btcUsdFeed = new MockChainlinkAggregator(60000e8, 8);
         MockChainlinkAggregator usdcUsdFeed = new MockChainlinkAggregator(1e8, 8); // $1 pegged USDC
         MockERC20 mockWeth = new MockERC20("Wrapped ETH", "WETH");
         MockERC20 mockWbtc = new MockERC20("Wrapped BTC", "WBTC");
         MockERC20 mockUsdc = new MockERC20("USDC", "USDC");
-        vm.stopBroadcast();
 
         return NetworkConfig({
             weth: address(mockWeth),

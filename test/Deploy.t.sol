@@ -19,7 +19,8 @@ contract DeployTest is Test {
 
     function setUp() public {
         deployer = new DeployLendingPool();
-        (pool, positionManager, oracle, engine, helperConfig) = deployer.run();
+        (pool, positionManager, oracle, engine) = deployer.run();
+        helperConfig = HelperConfig(address(deployer));
     }
 
     function testDeployment() public view {

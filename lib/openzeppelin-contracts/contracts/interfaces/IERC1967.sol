@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 // OpenZeppelin Contracts (last updated v5.4.0) (interfaces/IERC1967.sol)
 
-pragma solidity >=0.4.11;
+pragma solidity 0.8.30;
 
 /**
  * @dev ERC-1967: Proxy Storage Slots. This interface contains the events defined in the ERC.

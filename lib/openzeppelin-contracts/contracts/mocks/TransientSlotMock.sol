@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 // This file was procedurally generated from scripts/generate/templates/TransientSlotMock.js.
 
-pragma solidity ^0.8.24;
+pragma solidity 0.8.30;
 
 import {Multicall} from "../utils/Multicall.sol";
 import {TransientSlot} from "../utils/TransientSlot.sol";

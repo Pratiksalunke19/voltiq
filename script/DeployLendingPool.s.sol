@@ -1,5 +1,4 @@
-// SPDX-License-Identifier: MIT
-pragma solidity ^0.8.20;
+pragma solidity 0.8.30;
 
 import {Script} from "forge-std/Script.sol";
 import {LendingPool} from "../src/LendingPool.sol";
@@ -8,15 +7,13 @@ import {ChainlinkPriceOracle} from "../src/ChainlinkPriceOracle.sol";
 import {ReactiveLiquidationEngine} from "../src/ReactiveLiquidationEngine.sol";
 import {HelperConfig} from "./HelperConfig.s.sol";
 
-contract DeployLendingPool is Script {
+contract DeployLendingPool is Script, HelperConfig {
     function run()
         external
-        returns (LendingPool, PositionManager, ChainlinkPriceOracle, ReactiveLiquidationEngine, HelperConfig)
+        returns (LendingPool, PositionManager, ChainlinkPriceOracle, ReactiveLiquidationEngine)
     {
-        HelperConfig helperConfig = new HelperConfig();
-        HelperConfig.NetworkConfig memory activeConfig = helperConfig.getActiveNetworkConfig();
-
         vm.startBroadcast();
+        HelperConfig.NetworkConfig memory activeConfig = getOrCreateAnvilEthConfig();
 
         // 1. Deploy Oracle
         ChainlinkPriceOracle oracle = new ChainlinkPriceOracle();
@@ -39,6 +36,6 @@ contract DeployLendingPool is Script {
 
         vm.stopBroadcast();
 
-        return (pool, positionManager, oracle, engine, helperConfig);
+        return (pool, positionManager, oracle, engine);
     }
 }

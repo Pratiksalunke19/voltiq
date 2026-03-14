@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 // OpenZeppelin Contracts (last updated v5.4.0) (interfaces/IERC1363Spender.sol)
 
-pragma solidity >=0.5.0;
+pragma solidity 0.8.30;
 
 /**
  * @title IERC1363Spender
