@@ -45,6 +45,7 @@ function App() {
   const [provider, setProvider] = useState<ethers.BrowserProvider | null>(null);
   const [simDrop, setSimDrop] = useState(0);
   const [activeTab, setActiveTab] = useState<Tab>('dashboard');
+  const [showWarning, setShowWarning] = useState(true);
   
   // Form states
   const [depositAmount, setDepositAmount] = useState('');
@@ -106,6 +107,40 @@ function App() {
       console.error(error);
     } finally {
       setIsConnecting(false);
+    }
+  };
+
+  const importMockTokens = async () => {
+    // @ts-ignore
+    if (!window.ethereum) {
+      alert("Please install MetaMask");
+      return;
+    }
+
+    const tokensToImport = [
+      { symbol: 'WETH', address: CONTRACT_ADDRESSES['WETH'] },
+      { symbol: 'WBTC', address: CONTRACT_ADDRESSES['WBTC'] },
+      // { symbol: 'LINK', address: CONTRACT_ADDRESSES['LINK'] },
+      { symbol: 'USDC', address: CONTRACT_ADDRESSES['USDC'] },
+    ];
+
+    for (const token of tokensToImport) {
+      try {
+        // @ts-ignore
+        await window.ethereum.request({
+          method: 'wallet_watchAsset',
+          params: {
+            type: 'ERC20',
+            options: {
+              address: token.address,
+              symbol: token.symbol,
+              decimals: 18,
+            },
+          },
+        });
+      } catch (err) {
+        console.error(`Failed to import ${token.symbol}`, err);
+      }
     }
   };
 
@@ -249,6 +284,12 @@ function App() {
             <button className="btn btn-secondary" onClick={() => window.location.reload()}>
               <RefreshCcw size={16} />
             </button>
+
+            {walletAddress && (
+              <button className="btn btn-secondary" onClick={importMockTokens}>
+                <Coins size={16} /> Import Tokens
+              </button>
+            )}
             
             {walletAddress ? (
               <div className="btn btn-secondary" style={{ cursor: 'default' }}>
@@ -263,6 +304,19 @@ function App() {
             )}
           </div>
         </header>
+
+        {/* Warning Banner */}
+        {showWarning && (
+          <div className="warning-banner" style={{ background: 'rgba(245, 158, 11, 0.1)', borderBottom: '1px solid rgba(245, 158, 11, 0.2)', padding: '0.75rem 2rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div className="flex items-center gap-2 text-warning text-sm font-semibold">
+              <AlertTriangle size={16} />
+              <span>TESTNET NOTICE: We are currently utilizing custom mock WETH, WBTC, LINK, and USDC tokens to provide flexibility when testing the reactive liquidation engine. You can import these custom assets directly into your wallet.</span>
+            </div>
+            <button onClick={() => setShowWarning(false)} style={{ background: 'none', border: 'none', color: 'var(--warning-yellow)', cursor: 'pointer', padding: '0.25rem' }}>
+              &times;
+            </button>
+          </div>
+        )}
 
         {/* Scrollable Content Area */}
         <div className="content-area">
