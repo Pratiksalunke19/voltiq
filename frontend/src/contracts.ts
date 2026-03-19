@@ -1,13 +1,13 @@
 
 // Auto-generated file from Somnia deployment
 export const CONTRACT_ADDRESSES = {
-  "WETH": "0x6f247A570d6A6DFb8f1fB6c22B99d2a2bB1D0B72",
-  "WBTC": "0x6cBe198deBc4c0a21EE392bd6a458C557e947e17",
-  "USDC": "0xed72A9CfEF30eAE8270C6D1B81f272406531D065",
-  "ORACLE": "0x5A7bCf24445B0622eFb462032C582990ade10b62",
-  "PositionManager": "0x51dff47951563Af8e9Ab56F9cdc45A9EeF209d4d",
-  "LendingPool": "0x76E3DeAc035bD0796595F2500FCD76676B649fDE",
-  "ReactiveLiquidationEngine": "0x8443c17d9951Aa6f5b14f0971d6219b570a2A72b"
+  "WETH": "0x9cd4944ebd9Ec823CC3e035B0e656d0C1e6f768E",
+  "WBTC": "0xA2f3bec46b46de06C06c27Bcf82D95F58048d063",
+  "USDC": "0xd76E01A22e3EF6C8e5E6976CC856E11432A96965",
+  "ORACLE": "0x4aF14A2841cC6d99E27FBAF4a59fD4AaA7E24942",
+  "PositionManager": "0x19e74F333ce518EC5F9f8F92c0dcF91a06e885E1",
+  "LendingPool": "0xB094e4692Bce8fA36854458B0B6a52bB866084b5",
+  "ReactiveLiquidationEngine": "0x770027fef191cEBE395B789464f00A0A2b009Da1"
 };
 
 export const ABIS = {
@@ -374,6 +374,19 @@ export const ABIS = {
         }
       ],
       "stateMutability": "view"
+    },
+    {
+      "type": "function",
+      "name": "notifyPriceUpdate",
+      "inputs": [
+        {
+          "name": "asset",
+          "type": "address",
+          "internalType": "address"
+        }
+      ],
+      "outputs": [],
+      "stateMutability": "nonpayable"
     },
     {
       "type": "function",

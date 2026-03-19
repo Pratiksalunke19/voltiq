@@ -82,13 +82,14 @@ contract PositionManager is IPositionManager {
         vars.denom =
             BASIS_POINTS_DIVISOR - ((BASIS_POINTS_DIVISOR + vars.penalty) * LIQUIDATION_THRESHOLD / BASIS_POINTS_DIVISOR);
 
+        // Required debt to repay to push HF exactly to 1.0
         vars.debtToRepayUSD = (vars.num * BASIS_POINTS_DIVISOR) / vars.denom;
-        vars.debtToRepayUSD = (vars.debtToRepayUSD * 105) / 100;
 
         if (vars.debtToRepayUSD > pos.borrowValue) {
             vars.debtToRepayUSD = pos.borrowValue;
         }
 
+        // Penalty applies to the collateral seized
         vars.collateralToSeizeUSD = (vars.debtToRepayUSD * (BASIS_POINTS_DIVISOR + vars.penalty)) / BASIS_POINTS_DIVISOR;
 
         if (vars.collateralToSeizeUSD > pos.collateralValue) {

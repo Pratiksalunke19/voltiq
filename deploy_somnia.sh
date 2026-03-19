@@ -87,4 +87,5 @@ echo "{\"WETH\":\"$WETH_ADDR\",\"WBTC\":\"$WBTC_ADDR\",\"USDC\":\"$USDC_ADDR\",\
 # AUTOMATION: Sync to frontend
 node script/sync_somnia.js
 
-echo "🚀 Frontend is now synced with latest addresses!"
+echo "🚀 Frontend is now synced with latest addresses!
+Don't forget to mint USDC to LendingPool!"

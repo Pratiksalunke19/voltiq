@@ -1,0 +1,9 @@
+
+GET PRICEFEED ADDRESS USING ORACLE ADDRESS (to use setPrice function and inflate or deflate collateral value)
+- cast call 0x4aF14A2841cC6d99E27FBAF4a59fD4AaA7E24942 "sPriceFeeds(address)(address)" 0x9cd4944ebd9Ec823CC3e035B0e656d0C1e6f768E --rpc-url $SOMNIA_RPC_URL
+
+GET USER POSITION USING POSITION MANAGER ADDRESS
+- cast call 0x19e74F333ce518EC5F9f8F92c0dcF91a06e885E1 "getPosition(address)((uint256,uint256,uint256))" 0x5c157083E40688Aa91D92Ffcf6B2F94C3641C8C2 --rpc-url https://dream-rpc.somnia.network/
+
+LIQUIDATE USER POSITION USING REACTIVE LIQUIDATION ENGINE ADDRESS
+- cast send 0xB094e4692Bce8fA36854458B0B6a52bB866084b5 "liquidate(address)" 0x5c157083E40688Aa91D92Ffcf6B2F94C3641C8C2 --rpc-url $SOMNIA_RPC_URL --private-key $PRIVATE_KEY --legacy
