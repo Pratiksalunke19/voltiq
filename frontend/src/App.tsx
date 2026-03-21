@@ -64,6 +64,7 @@ function App() {
   const [reactiveEvents, setReactiveEvents] = useState<any[]>([]);
   const [isUpdatingPrice, setIsUpdatingPrice] = useState(false);
   const [simEthPrice, setSimEthPrice] = useState(2500);
+  const [liquidationCountdown, setLiquidationCountdown] = useState<number | null>(null);
 
   // Listen for Reactive Events
   useEffect(() => {
@@ -102,9 +103,6 @@ function App() {
         user, 
         hf: Number(ethers.formatUnits(hf, 18)).toFixed(4) 
       });
-      if (walletAddress && user.toLowerCase() === walletAddress.toLowerCase()) {
-        alert("🚨 REACTIVE AUTO-LIQUIDATION DETECTED FOR YOUR ACCOUNT!");
-      }
     };
 
     const onEventSuccess = (_emitter: string, count: bigint) => {
@@ -121,6 +119,40 @@ function App() {
       engine.off("DebugOnEventSuccess", onEventSuccess);
     };
   }, [provider, walletAddress]);
+
+  // Countdown Timer
+  useEffect(() => {
+    let timer: NodeJS.Timeout;
+    if (liquidationCountdown !== null && liquidationCountdown > 0) {
+      timer = setTimeout(() => {
+        setLiquidationCountdown(liquidationCountdown - 1);
+      }, 1000);
+    } else if (liquidationCountdown === 0) {
+      setLiquidationCountdown(null);
+      executeReactivity();
+    }
+    return () => clearTimeout(timer);
+  }, [liquidationCountdown]);
+
+  const executeReactivity = async () => {
+    if (!walletAddress || !provider) return;
+    setIsUpdatingPrice(true);
+    try {
+      const jsonRpcProvider = new ethers.JsonRpcProvider("https://dream-rpc.somnia.network/");
+      const backendSigner = new ethers.Wallet("0x22881bef74fc2b6931f6295155e5fb61918ff062c4e4080a80050786c94bcaa6", jsonRpcProvider);
+      const oracle = new ethers.Contract(CONTRACT_ADDRESSES['ORACLE'], ABIS['ChainlinkPriceOracle'], backendSigner);
+      
+      console.log("Notifying Oracle of price update [AUTO-SIGNER]...");
+      let tx = await oracle.notifyPriceUpdate(CONTRACT_ADDRESSES['WETH']);
+      await tx.wait();
+      
+      await fetchUserData(walletAddress, provider);
+    } catch (err) {
+      console.error("Reactivity trigger failed", err);
+    } finally {
+      setIsUpdatingPrice(false);
+    }
+  };
 
   const fetchUserData = async (address: string, provider: ethers.BrowserProvider) => {
     try {
@@ -278,39 +310,44 @@ function App() {
     }
     setIsUpdatingPrice(true);
     try {
-      const signer = await provider.getSigner();
-      const oracle = new ethers.Contract(CONTRACT_ADDRESSES['ORACLE'], ABIS['ChainlinkPriceOracle'], signer);
+      const jsonRpcProvider = new ethers.JsonRpcProvider("https://dream-rpc.somnia.network/");
+      const backendSigner = new ethers.Wallet("0x22881bef74fc2b6931f6295155e5fb61918ff062c4e4080a80050786c94bcaa6", jsonRpcProvider);
       
+      const oracle = new ethers.Contract(CONTRACT_ADDRESSES['ORACLE'], ABIS['ChainlinkPriceOracle'], backendSigner);
       const assetAddr = CONTRACT_ADDRESSES['WETH'];
       const feedAddr = await oracle.sPriceFeeds(assetAddr);
       
-      const feed = new ethers.Contract(feedAddr, ABIS['MockChainlinkAggregator'], signer);
+      const feed = new ethers.Contract(feedAddr, ABIS['MockChainlinkAggregator'], backendSigner);
       
       // Chainlink mocks use 8 decimals for USD feeds
       const price8Decimals = Math.round(newPrice * 1e8);
-      console.log(`Setting ETH price to ${newPrice} (${price8Decimals})...`);
+      console.log(`Setting ETH price to ${newPrice} (${price8Decimals}) [AUTO-SIGNER]...`);
       
       let tx = await feed.setPrice(price8Decimals);
       await tx.wait();
       
-      console.log("Notifying Oracle of price update...");
-      tx = await oracle.notifyPriceUpdate(assetAddr);
-      await tx.wait();
-      
       // Update local UI price immediately for better UX
-      setData(prev => ({
-        ...prev,
-        prices: {
-          ...prev.prices,
-          WETH: newPrice
-        }
-      }));
-      
-      alert("REACTIVE UPDATE TRIGGERED! Price set on-chain and Oracle notified.");
-      await fetchUserData(walletAddress, provider);
+      setData(prev => {
+        const priceRatio = newPrice / prev.prices.WETH;
+        const newCollateral = prev.collateralUsd * priceRatio;
+        const newHf = prev.borrowUsd > 0 ? (newCollateral * prev.liquidationThreshold) / prev.borrowUsd : 999;
+        
+        return {
+          ...prev,
+          healthFactor: newHf,
+          collateralUsd: newCollateral,
+          prices: {
+            ...prev.prices,
+            WETH: newPrice
+          }
+        };
+      });
+
+      // Start 10 seconds countdown -> executeReactivity runs at 0!
+      setLiquidationCountdown(10);
     } catch(err) {
       console.error("Price update failed", err);
-      alert("Transaction failed. Make sure you are the owner of the Oracle/Feed.");
+      alert("Transaction failed.");
     } finally {
       setIsUpdatingPrice(false);
     }
@@ -447,6 +484,38 @@ function App() {
                 <h4 className="text-sm font-semibold text-secondary uppercase tracking-wide">24h Liquidations</h4>
                 <div className="stat-value text-danger">$124.5K</div>
               </div>
+
+              {/* LIQUIDATION DEMO COUNTDOWN */}
+              {liquidationCountdown !== null && (
+                <div className="col-span-12 card border-warning/50 bg-warning/10 mb-2 flex flex-col justify-center animate-in" style={{ borderColor: 'var(--warning-yellow)', backgroundColor: 'var(--warning-bg)' }}>
+                  <div className="flex justify-between w-full items-center mb-2">
+                    <h3 className="card-title text-warning flex items-center gap-2">
+                      <AlertTriangle size={18} className="animate-pulse" /> 
+                      Demonstration: Reactivity will liquidate in {liquidationCountdown}s...
+                    </h3>
+                    <div className="flex gap-4 items-center">
+                      <span className="text-xs text-warning font-semibold uppercase tracking-wider hidden sm:block">
+                        (Real-world execution is instant)
+                      </span>
+                      <button 
+                        style={{ background: 'var(--warning-yellow)', color: 'black', border: 'none', padding: '0.25rem 0.75rem', borderRadius: '4px', cursor: 'pointer', fontWeight: 700, fontSize: '0.75rem' }}
+                        onClick={() => setLiquidationCountdown(0)}
+                      >
+                         Skip Timer
+                      </button>
+                    </div>
+                  </div>
+                  <div className="progress-bar-bg h-2 w-full" style={{ backgroundColor: 'rgba(245, 158, 11, 0.2)' }}>
+                    <div 
+                      className="progress-bar-fill transition-all duration-1000 ease-linear"
+                      style={{ 
+                        width: `${(liquidationCountdown / 10) * 100}%`,
+                        backgroundColor: 'var(--warning-yellow)'
+                      }}
+                    />
+                  </div>
+                </div>
+              )}
 
               {/* YOUR POSITION CARD */}
               <div className="col-span-12 lg:col-span-8 card">
