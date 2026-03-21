@@ -31,6 +31,44 @@
   --font-mono: 'JetBrains Mono', monospace;
 }
 
+[data-theme="light"] {
+  --bg-main: #f8fafc;
+  --bg-sidebar: #ffffff;
+  --bg-surface: #ffffff;
+  --bg-surface-hover: #f1f5f9;
+  --border-color: rgba(0, 0, 0, 0.08);
+
+  --text-primary: #0f172a;
+  --text-secondary: #475569;
+  --text-muted: #94a3b8;
+
+  --brand-glow: rgba(59, 130, 246, 0.2);
+  --safe-bg: rgba(16, 185, 129, 0.15);
+  --warning-bg: rgba(245, 158, 11, 0.15);
+  --danger-bg: rgba(239, 68, 68, 0.15);
+}
+
+[data-theme="light"] .bg-panel { background: rgba(0,0,0,0.02); }
+[data-theme="light"] .btn-secondary {
+  border-color: var(--border-color);
+}
+[data-theme="light"] .btn-secondary:hover {
+  background: rgba(0, 0, 0, 0.05);
+  border-color: rgba(0, 0, 0, 0.15);
+}
+[data-theme="light"] .data-table td {
+  border-bottom: 1px solid rgba(0,0,0,0.03);
+}
+[data-theme="light"] .data-table tr:hover td {
+  background: rgba(0,0,0,0.02);
+}
+[data-theme="light"] .nav-item:hover {
+  background-color: rgba(0, 0, 0, 0.03);
+}
+[data-theme="light"] .custom-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.1);
+}
+
 * {
   box-sizing: border-box;
   margin: 0;
@@ -58,7 +96,7 @@ body {
 h1, h2, h3, h4, h5, h6 {
   font-family: var(--font-display);
   font-weight: 600;
-  letter-spacing: -0.02em;
+  letter-spacing: -0.01em;
 }
 
 button {
@@ -81,6 +119,27 @@ button {
   flex-direction: column;
   flex-shrink: 0;
   z-index: 10;
+  transition: width 0.3s ease;
+}
+
+.sidebar.collapsed {
+  width: 80px;
+}
+
+.sidebar.collapsed .brand-text,
+.sidebar.collapsed .nav-item span {
+  display: none;
+}
+.sidebar.collapsed .sidebar-footer {
+  display: none;
+}
+.sidebar.collapsed .nav-item {
+  justify-content: center;
+  padding: 0.875rem 0;
+}
+.sidebar.collapsed .brand {
+  justify-content: center;
+  width: 100%;
 }
 
 .sidebar-header {
@@ -183,7 +242,6 @@ div.brand-text {
   align-items: center;
   justify-content: space-between;
   padding: 0 2rem;
-  background: rgba(6, 7, 10, 0.8);
   backdrop-filter: blur(12px);
   border-bottom: 1px solid var(--border-color);
   z-index: 10;
@@ -253,13 +311,13 @@ div.brand-text {
 }
 
 /* Typography Helpers */
-.text-xs { font-size: 0.75rem; }
-.text-sm { font-size: 0.875rem; }
-.text-base { font-size: 1rem; }
-.text-lg { font-size: 1.125rem; }
-.text-xl { font-size: 1.25rem; }
-.text-2xl { font-size: 1.5rem; }
-.text-3xl { font-size: 1.875rem; font-weight: 700; letter-spacing: -0.02em; }
+.text-xs { font-size: 0.70rem; }
+.text-sm { font-size: 0.8125rem; }
+.text-base { font-size: 0.9375rem; }
+.text-lg { font-size: 1.0625rem; }
+.text-xl { font-size: 1.1875rem; }
+.text-2xl { font-size: 1.375rem; }
+.text-3xl { font-size: 1.75rem; font-weight: 700; letter-spacing: -0.02em; }
 
 .font-medium { font-weight: 500; }
 .font-semibold { font-weight: 600; }

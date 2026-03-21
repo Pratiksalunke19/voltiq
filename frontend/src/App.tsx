@@ -3,7 +3,8 @@ import {
   Wallet, Zap, ShieldAlert, ShieldCheck, 
   PieChart, Sliders, AlertTriangle, LineChart, LayoutDashboard,
   RefreshCcw, ArrowRightLeft, Database, Activity,
-  ArrowUpRight, ArrowDownLeft, Coins, Info
+  ArrowUpRight, ArrowDownLeft, Coins, Info,
+  Menu, Moon, Sun
 } from 'lucide-react';
 import { ethers } from 'ethers';
 import './index.css';
@@ -36,7 +37,7 @@ const MOCK_DATA = {
   ]
 };
 
-type Tab = 'dashboard' | 'borrow' | 'markets' | 'liquidations' | 'faucet';
+type Tab = 'dashboard' | 'borrow' | 'markets' | 'liquidations' | 'faucet' | 'activity';
 
 function App() {
   const [walletAddress, setWalletAddress] = useState<string | null>(null);
@@ -46,6 +47,40 @@ function App() {
   const [simDrop, setSimDrop] = useState(0);
   const [activeTab, setActiveTab] = useState<Tab>('dashboard');
   const [showWarning, setShowWarning] = useState(true);
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+  const [isLightMode, setIsLightMode] = useState(false);
+
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', isLightMode ? 'light' : 'dark');
+  }, [isLightMode]);
+
+  // Fetch real on-chain price on initial load
+  useEffect(() => {
+    let active = true;
+    const fetchOraclePrice = async () => {
+      try {
+        const jsonRpcProvider = new ethers.JsonRpcProvider("https://dream-rpc.somnia.network/");
+        const oracle = new ethers.Contract(CONTRACT_ADDRESSES['ORACLE'], ABIS['ChainlinkPriceOracle'], jsonRpcProvider);
+        const priceBN = await oracle.getPrice(CONTRACT_ADDRESSES['WETH']);
+        const priceNum = Number(ethers.formatUnits(priceBN, 18));
+        
+        if (active && priceNum > 0) {
+          setSimEthPrice(priceNum);
+          setData(prev => ({
+            ...prev,
+            prices: {
+              ...prev.prices,
+              WETH: priceNum
+            }
+          }));
+        }
+      } catch (err) {
+        console.error("Failed to fetch initial oracle price", err);
+      }
+    };
+    fetchOraclePrice();
+    return () => { active = false; };
+  }, []);
   
   // Form states
   const [depositAmount, setDepositAmount] = useState('');
@@ -82,7 +117,7 @@ function App() {
         type,
         timestamp: new Date().toLocaleTimeString(),
         ...details
-      }, ...prev].slice(0, 10)); // Keep last 10
+      }, ...prev].slice(0, 50)); // Keep last 50 for separate page
     };
 
     // Subscriptions
@@ -374,7 +409,7 @@ function App() {
   return (
     <div className="app-layout">
       {/* Sidebar Navigation */}
-      <aside className="sidebar">
+      <aside className={`sidebar ${isSidebarCollapsed ? 'collapsed' : ''}`}>
         <div className="sidebar-header">
           <div className="brand" onClick={() => setActiveTab('dashboard')} style={{cursor: 'pointer'}}>
             <Zap className="brand-icon" size={28} />
@@ -382,25 +417,25 @@ function App() {
           </div>
         </div>
         <nav className="sidebar-nav">
-          <div className={`nav-item ${activeTab === 'dashboard' ? 'active' : ''}`} onClick={() => setActiveTab('dashboard')}>
+          <div className={`nav-item ${activeTab === 'dashboard' ? 'active' : ''}`} onClick={() => setActiveTab('dashboard')} title="Dashboard">
             <LayoutDashboard size={20} />
-            Dashboard
+            <span>Dashboard</span>
           </div>
-          <div className={`nav-item ${activeTab === 'markets' ? 'active' : ''}`} onClick={() => setActiveTab('markets')}>
+          {/* <div className={`nav-item ${activeTab === 'markets' ? 'active' : ''}`} onClick={() => setActiveTab('markets')} title="Markets">
             <Database size={20} />
-            Markets
-          </div>
-          <div className={`nav-item ${activeTab === 'borrow' ? 'active' : ''}`} onClick={() => setActiveTab('borrow')}>
+            <span>Markets</span>
+          </div> */}
+          <div className={`nav-item ${activeTab === 'borrow' ? 'active' : ''}`} onClick={() => setActiveTab('borrow')} title="Borrow / Repay">
             <ArrowRightLeft size={20} />
-            Borrow / Repay
+            <span>Borrow / Repay</span>
           </div>
-          <div className={`nav-item ${activeTab === 'liquidations' ? 'active' : ''}`} onClick={() => setActiveTab('liquidations')}>
+          {/* <div className={`nav-item ${activeTab === 'liquidations' ? 'active' : ''}`} onClick={() => setActiveTab('liquidations')} title="Liquidations">
             <ShieldAlert size={20} />
-            Liquidations
-          </div>
-          <div className={`nav-item ${activeTab === 'faucet' ? 'active' : ''}`} onClick={() => setActiveTab('faucet')}>
+            <span>Liquidations</span>
+          </div> */}
+          <div className={`nav-item ${activeTab === 'faucet' ? 'active' : ''}`} onClick={() => setActiveTab('faucet')} title="Faucet">
             <Coins size={20} />
-            Faucet
+            <span>Faucet</span>
           </div>
         </nav>
         <div className="sidebar-footer">
@@ -417,14 +452,19 @@ function App() {
         {/* Top App Bar */}
         <header className="topbar">
           <div className="topbar-title font-display flex items-center gap-4">
-            <span style={{textTransform: 'capitalize'}}>{activeTab}</span>
-            <div className="live-indicator">
+            <button onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)} className="btn btn-secondary border-none" style={{ padding: '0.4rem', border: 'none' }}>
+              <Menu size={20} />
+            </button>
+            <div className="live-indicator hidden md:flex">
               <span className="dot"></span>
               Somnia RPC Active
             </div>
           </div>
           
           <div className="topbar-actions">
+            <button className="btn btn-secondary" style={{ padding: '0.5rem', borderRadius: '50%' }} onClick={() => setIsLightMode(!isLightMode)}>
+              {isLightMode ? <Moon size={16} /> : <Sun size={16} />}
+            </button>
             <button className="btn btn-secondary" onClick={() => window.location.reload()}>
               <RefreshCcw size={16} />
             </button>
@@ -466,26 +506,8 @@ function App() {
         <div className="content-area">
           
           {activeTab === 'dashboard' && (
-            <div className="dashboard-grid">
-              {/* KPI STAT CARDS */}
-              <div className="col-span-12 lg:col-span-3 stat-card">
-                <h4 className="text-sm font-semibold text-secondary uppercase tracking-wide">Total Value Locked</h4>
-                <div className="stat-value text-gradient">{formatCurrency(data.protocolTvl)}</div>
-              </div>
-              <div className="col-span-12 lg:col-span-3 stat-card">
-                <h4 className="text-sm font-semibold text-secondary uppercase tracking-wide">Active Loans</h4>
-                <div className="stat-value">{data.activeLoans}</div>
-              </div>
-              <div className="col-span-12 lg:col-span-3 stat-card">
-                <h4 className="text-sm font-semibold text-secondary uppercase tracking-wide">Sys Health Factor</h4>
-                <div className="stat-value text-safe">1.84</div>
-              </div>
-              <div className="col-span-12 lg:col-span-3 stat-card">
-                <h4 className="text-sm font-semibold text-secondary uppercase tracking-wide">24h Liquidations</h4>
-                <div className="stat-value text-danger">$124.5K</div>
-              </div>
-
-              {/* LIQUIDATION DEMO COUNTDOWN */}
+                        <div className="dashboard-grid">
+{/* LIQUIDATION DEMO COUNTDOWN */}
               {liquidationCountdown !== null && (
                 <div className="col-span-12 card border-warning/50 bg-warning/10 mb-2 flex flex-col justify-center animate-in" style={{ borderColor: 'var(--warning-yellow)', backgroundColor: 'var(--warning-bg)' }}>
                   <div className="flex justify-between w-full items-center mb-2">
@@ -566,6 +588,72 @@ function App() {
                   <button className="btn btn-secondary flex-1 pl-4 pr-4 border hover:bg-white/5" onClick={() => setActiveTab('markets')}>
                     View Markets
                   </button>
+                </div>
+              </div>
+
+              {/* LIVE REACTIVITY FEED */}
+              <div className="col-span-12 lg:col-span-4 card border-accent/20">
+                <div className="card-header">
+                  <h3 className="card-title text-accent"><Activity size={18} /> Live Activity</h3>
+                  <div className="live-indicator">
+                    <span className="dot pulse"></span>
+                    Reactivity Active
+                  </div>
+                </div>
+                <div className="flex flex-col gap-3 max-h-[400px] overflow-y-auto pr-1 custom-scrollbar">
+                  {reactiveEvents.length === 0 ? (
+                    <div className="text-center py-10 opacity-40">
+                      <Database size={32} className="mx-auto mb-2" />
+                      <p className="text-sm">Waiting for Somnia events...</p>
+                      <p className="text-[10px] mt-1 text-secondary uppercase tracking-widest">Oracle update will trigger Keeper</p>
+                    </div>
+                  ) : (
+                    <>
+                      {reactiveEvents.slice(0, 4).map(event => (
+                        <div key={event.id} className={`p-3 rounded-lg border bg-surface-hover flex flex-col gap-1 transition-all animate-in slide-in-from-right-4 duration-300 ${event.type === 'LIQUIDATION' ? 'border-danger/30 bg-danger/5' : 'border-white/5'}`}>
+                          <div className="flex justify-between items-center">
+                            <span className={`text-[10px] font-bold uppercase tracking-wider ${event.type === 'LIQUIDATION' ? 'text-danger' : 'text-accent'}`}>
+                              {event.type.replace('_', ' ')}
+                            </span>
+                            <span className="text-[10px] text-muted font-mono">{event.timestamp}</span>
+                          </div>
+                          {event.type === 'USER_CHECKED' && (
+                            <div className="text-xs">
+                              <span className="text-secondary">User:</span> <span className="font-mono">{truncateAddress(event.user)}</span>
+                              <br />
+                              <span className="text-secondary">Health Factor:</span> <span className={`font-mono font-bold ${Number(event.hf) < 1 ? 'text-danger' : 'text-safe'}`}>{event.hf}</span>
+                            </div>
+                          )}
+                          {event.type === 'LIQUIDATION' && (
+                            <div className="text-xs font-bold text-danger">
+                              ⚠️ AUTO-LIQUIDATING {truncateAddress(event.user)}
+                            </div>
+                          )}
+                          {event.type === 'SYNC_SUCCESS' && (
+                            <div className="text-xs text-secondary">
+                              Reactivity Engine synced {event.count} monitored users
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                      {reactiveEvents.length > 4 && (
+                        <button 
+                          className="btn btn-secondary w-full border border-white/5 bg-panel" 
+                          style={{ padding: '0.5rem', fontSize: '0.75rem', marginTop: '0.25rem' }}
+                          onClick={() => setActiveTab('activity')}
+                        >
+                          View All Activity Logs ({reactiveEvents.length})
+                        </button>
+                      )}
+                    </>
+                  )}
+                </div>
+                
+                <div className="mt-4 pt-4 border-t border-white/5">
+                  <div className="flex items-center gap-2 text-[10px] text-muted uppercase tracking-widest">
+                    <Info size={12} />
+                    <span>Powered by Somnia Sub #21168</span>
+                  </div>
                 </div>
               </div>
 
@@ -653,61 +741,6 @@ function App() {
                       <span className="font-mono font-bold">{formatCurrency(price)}</span>
                     </div>
                   ))}
-                </div>
-              </div>
-
-              {/* LIVE REACTIVITY FEED */}
-              <div className="col-span-12 lg:col-span-4 card border-accent/20">
-                <div className="card-header">
-                  <h3 className="card-title text-accent"><Activity size={18} /> Live Activity</h3>
-                  <div className="live-indicator">
-                    <span className="dot pulse"></span>
-                    Reactivity Active
-                  </div>
-                </div>
-                <div className="flex flex-col gap-3 max-h-[400px] overflow-y-auto pr-1 custom-scrollbar">
-                  {reactiveEvents.length === 0 ? (
-                    <div className="text-center py-10 opacity-40">
-                      <Database size={32} className="mx-auto mb-2" />
-                      <p className="text-sm">Waiting for Somnia events...</p>
-                      <p className="text-[10px] mt-1 text-secondary uppercase tracking-widest">Oracle update will trigger Keeper</p>
-                    </div>
-                  ) : (
-                    reactiveEvents.map(event => (
-                      <div key={event.id} className={`p-3 rounded-lg border bg-surface-hover flex flex-col gap-1 transition-all animate-in slide-in-from-right-4 duration-300 ${event.type === 'LIQUIDATION' ? 'border-danger/30 bg-danger/5' : 'border-white/5'}`}>
-                        <div className="flex justify-between items-center">
-                          <span className={`text-[10px] font-bold uppercase tracking-wider ${event.type === 'LIQUIDATION' ? 'text-danger' : 'text-accent'}`}>
-                            {event.type.replace('_', ' ')}
-                          </span>
-                          <span className="text-[10px] text-muted font-mono">{event.timestamp}</span>
-                        </div>
-                        {event.type === 'USER_CHECKED' && (
-                          <div className="text-xs">
-                            <span className="text-secondary">User:</span> <span className="font-mono">{truncateAddress(event.user)}</span>
-                            <br />
-                            <span className="text-secondary">Health Factor:</span> <span className={`font-mono font-bold ${Number(event.hf) < 1 ? 'text-danger' : 'text-safe'}`}>{event.hf}</span>
-                          </div>
-                        )}
-                        {event.type === 'LIQUIDATION' && (
-                          <div className="text-xs font-bold text-danger">
-                            ⚠️ AUTO-LIQUIDATING {truncateAddress(event.user)}
-                          </div>
-                        )}
-                        {event.type === 'SYNC_SUCCESS' && (
-                          <div className="text-xs text-secondary">
-                            Reactivity Engine synced {event.count} monitored users
-                          </div>
-                        )}
-                      </div>
-                    ))
-                  )}
-                </div>
-                
-                <div className="mt-4 pt-4 border-t border-white/5">
-                  <div className="flex items-center gap-2 text-[10px] text-muted uppercase tracking-widest">
-                    <Info size={12} />
-                    <span>Powered by Somnia Sub #21168</span>
-                  </div>
                 </div>
               </div>
 
@@ -818,6 +851,24 @@ function App() {
                     </div>
                   </div>
                 </div>
+              </div>
+              
+              {/* KPI STAT CARDS */}
+              <div className="col-span-12 lg:col-span-3 stat-card">
+                <h4 className="text-sm font-semibold text-secondary uppercase tracking-wide">Total Value Locked</h4>
+                <div className="stat-value text-gradient">{formatCurrency(data.protocolTvl)}</div>
+              </div>
+              <div className="col-span-12 lg:col-span-3 stat-card">
+                <h4 className="text-sm font-semibold text-secondary uppercase tracking-wide">Active Loans</h4>
+                <div className="stat-value">{data.activeLoans}</div>
+              </div>
+              <div className="col-span-12 lg:col-span-3 stat-card">
+                <h4 className="text-sm font-semibold text-secondary uppercase tracking-wide">Sys Health Factor</h4>
+                <div className="stat-value text-safe">1.84</div>
+              </div>
+              <div className="col-span-12 lg:col-span-3 stat-card">
+                <h4 className="text-sm font-semibold text-secondary uppercase tracking-wide">24h Liquidations</h4>
+                <div className="stat-value text-danger">$124.5K</div>
               </div>
             </div>
           )}
@@ -1007,6 +1058,58 @@ function App() {
                     </div>
                   </div>
                 </div>
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'activity' && (
+            <div className="card" style={{ maxWidth: '1000px', margin: '0 auto' }}>
+              <div className="card-header border-b pb-4 mb-4" style={{ borderBottomColor: 'var(--border-color)'}}>
+                <div className="flex items-center gap-3">
+                  <button className="btn btn-secondary p-2 border-none" onClick={() => setActiveTab('dashboard')} style={{ padding: '0.25rem' }}>
+                    <ArrowDownLeft size={20} style={{ transform: 'rotate(45deg)' }} />
+                  </button>
+                  <h3 className="card-title text-accent m-0" style={{ margin: 0 }}><Activity size={18} /> Full Reactivity Log</h3>
+                </div>
+                <span className="badge badge-safe">Monitoring Events</span>
+              </div>
+              
+              <div className="flex flex-col gap-3">
+                {reactiveEvents.length === 0 ? (
+                  <div className="text-center py-10 opacity-40">
+                    <Database size={32} className="mx-auto mb-2" />
+                    <p className="text-sm">No recorded events generated in this session.</p>
+                  </div>
+                ) : (
+                  reactiveEvents.map(event => (
+                    <div key={event.id} className={`p-4 rounded-xl border bg-surface-hover flex flex-col gap-2 ${event.type === 'LIQUIDATION' ? 'border-danger/30 bg-danger/5' : 'border-white/5'}`}>
+                      <div className="flex justify-between items-center">
+                        <span className={`text-xs font-bold uppercase tracking-wider ${event.type === 'LIQUIDATION' ? 'text-danger' : 'text-accent'}`}>
+                          {event.type.replace('_', ' ')}
+                        </span>
+                        <span className="text-xs text-muted font-mono">{event.timestamp}</span>
+                      </div>
+                      
+                      {event.type === 'USER_CHECKED' && (
+                        <div className="text-sm text-secondary">
+                          Vault monitored for User <span className="text-primary font-mono bg-panel px-2 py-1 rounded">{event.user}</span>
+                          <span className="mx-2">→</span> Detected Health Factor: <span className={`font-mono font-bold ${Number(event.hf) < 1 ? 'text-danger' : 'text-safe'}`}>{event.hf}</span>
+                        </div>
+                      )}
+                      {event.type === 'LIQUIDATION' && (
+                        <div className="text-sm font-bold text-danger">
+                          ⚠️ PROTOCOL ACTION: AUTO-LIQUIDATING {event.user} 
+                          <span className="ml-2 font-mono">(Trigger HF: {event.hf})</span>
+                        </div>
+                      )}
+                      {event.type === 'SYNC_SUCCESS' && (
+                        <div className="text-sm text-secondary">
+                          Reactivity Engine cycle finished smoothly. Successfully evaluated {event.count} vaulted accounts.
+                        </div>
+                      )}
+                    </div>
+                  ))
+                )}
               </div>
             </div>
           )}
