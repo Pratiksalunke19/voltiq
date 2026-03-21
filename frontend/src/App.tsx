@@ -1,8 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { 
-  Wallet, Zap, ShieldAlert, ShieldCheck, TrendingDown, 
+  Wallet, Zap, ShieldAlert, ShieldCheck, 
   PieChart, Sliders, AlertTriangle, LineChart, LayoutDashboard,
-  BarChart3, RefreshCcw, LogOut, ArrowRightLeft, Database, Activity,
+  RefreshCcw, ArrowRightLeft, Database, Activity,
   ArrowUpRight, ArrowDownLeft, Coins, Info
 } from 'lucide-react';
 import { ethers } from 'ethers';
@@ -55,10 +55,72 @@ function App() {
   const [mintAmount, setMintAmount] = useState('1000');
   const [mintAsset, setMintAsset] = useState('USDC');
 
-  // Determine health status
+  // Determining health status
   let healthStatus = 'safe';
   if (data.healthFactor < 1.05) healthStatus = 'danger';
   else if (data.healthFactor < 1.3) healthStatus = 'warning';
+
+  // Live Activity State
+  const [reactiveEvents, setReactiveEvents] = useState<any[]>([]);
+  const [isUpdatingPrice, setIsUpdatingPrice] = useState(false);
+  const [simEthPrice, setSimEthPrice] = useState(2500);
+
+  // Listen for Reactive Events
+  useEffect(() => {
+    if (!provider || !walletAddress) return;
+
+    const engine = new ethers.Contract(
+      CONTRACT_ADDRESSES['ReactiveLiquidationEngine'],
+      ABIS['ReactiveLiquidationEngine'],
+      provider
+    );
+
+    const handleEvent = (type: string, details: any) => {
+      setReactiveEvents(prev => [{
+        id: Date.now(),
+        type,
+        timestamp: new Date().toLocaleTimeString(),
+        ...details
+      }, ...prev].slice(0, 10)); // Keep last 10
+    };
+
+    // Subscriptions
+    const onUserChecked = (user: string, hf: bigint) => {
+      console.log("Reactivity: User Checked", user, hf);
+      handleEvent('USER_CHECKED', { 
+        user, 
+        hf: Number(ethers.formatUnits(hf, 18)).toFixed(4) 
+      });
+      if (user.toLowerCase() === walletAddress.toLowerCase()) {
+        fetchUserData(walletAddress, provider);
+      }
+    };
+
+    const onLiquidation = (user: string, hf: bigint) => {
+      console.log("Reactivity: LIQUIDATION TRIGGERED", user);
+      handleEvent('LIQUIDATION', { 
+        user, 
+        hf: Number(ethers.formatUnits(hf, 18)).toFixed(4) 
+      });
+      if (walletAddress && user.toLowerCase() === walletAddress.toLowerCase()) {
+        alert("🚨 REACTIVE AUTO-LIQUIDATION DETECTED FOR YOUR ACCOUNT!");
+      }
+    };
+
+    const onEventSuccess = (_emitter: string, count: bigint) => {
+      handleEvent('SYNC_SUCCESS', { count: count.toString() });
+    };
+
+    engine.on("DebugUserChecked", onUserChecked);
+    engine.on("DebugLiquidationTriggered", onLiquidation);
+    engine.on("DebugOnEventSuccess", onEventSuccess);
+
+    return () => {
+      engine.off("DebugUserChecked", onUserChecked);
+      engine.off("DebugLiquidationTriggered", onLiquidation);
+      engine.off("DebugOnEventSuccess", onEventSuccess);
+    };
+  }, [provider, walletAddress]);
 
   const fetchUserData = async (address: string, provider: ethers.BrowserProvider) => {
     try {
@@ -206,6 +268,51 @@ function App() {
       alert(`Minted ${mintAmount} ${mintAsset} to your wallet!`);
     } catch(err) {
       console.error("Mint failed!", err);
+    }
+  };
+
+  const handlePriceChange = async (newPrice: number) => {
+    if (!walletAddress || !provider) {
+      alert("Please connect your wallet first!");
+      return;
+    }
+    setIsUpdatingPrice(true);
+    try {
+      const signer = await provider.getSigner();
+      const oracle = new ethers.Contract(CONTRACT_ADDRESSES['ORACLE'], ABIS['ChainlinkPriceOracle'], signer);
+      
+      const assetAddr = CONTRACT_ADDRESSES['WETH'];
+      const feedAddr = await oracle.sPriceFeeds(assetAddr);
+      
+      const feed = new ethers.Contract(feedAddr, ABIS['MockChainlinkAggregator'], signer);
+      
+      // Chainlink mocks use 8 decimals for USD feeds
+      const price8Decimals = Math.round(newPrice * 1e8);
+      console.log(`Setting ETH price to ${newPrice} (${price8Decimals})...`);
+      
+      let tx = await feed.setPrice(price8Decimals);
+      await tx.wait();
+      
+      console.log("Notifying Oracle of price update...");
+      tx = await oracle.notifyPriceUpdate(assetAddr);
+      await tx.wait();
+      
+      // Update local UI price immediately for better UX
+      setData(prev => ({
+        ...prev,
+        prices: {
+          ...prev.prices,
+          WETH: newPrice
+        }
+      }));
+      
+      alert("REACTIVE UPDATE TRIGGERED! Price set on-chain and Oracle notified.");
+      await fetchUserData(walletAddress, provider);
+    } catch(err) {
+      console.error("Price update failed", err);
+      alert("Transaction failed. Make sure you are the owner of the Oracle/Feed.");
+    } finally {
+      setIsUpdatingPrice(false);
     }
   };
 
@@ -393,6 +500,74 @@ function App() {
                 </div>
               </div>
 
+              {/* LIVE PRICE FEED CONTROLLER */}
+              <div className="col-span-12 lg:col-span-8 card border-accent/20 bg-accent/5">
+                <div className="card-header">
+                  <h3 className="card-title text-accent flex items-center gap-2">
+                    <Zap size={18} /> Live Price Controller (Simulate Reactivity)
+                  </h3>
+                  {isUpdatingPrice && (
+                    <span className="flex items-center gap-2 text-xs text-accent animate-pulse">
+                      <RefreshCcw size={12} className="animate-spin" /> Processing On-Chain...
+                    </span>
+                  )}
+                </div>
+                <p className="text-xs text-secondary mb-4">
+                  Adjust the ETH price below. This will execute <b>on-chain transactions</b> to update the Mock Oracle and trigger the <b>Reactive Liquidation Engine</b>.
+                </p>
+                
+                <div className="flex items-center gap-6 bg-panel rounded-xl p-6 border border-white/5">
+                  <div className="flex-1">
+                    <div className="flex justify-between items-center mb-3">
+                      <span className="text-sm font-semibold">WETH Price Feed</span>
+                      <span className="font-mono font-bold text-xl text-accent">${simEthPrice}</span>
+                    </div>
+                    <input 
+                      type="range" 
+                      min="1000" 
+                      max="4000" 
+                      step="50" 
+                      value={simEthPrice} 
+                      onChange={(e) => setSimEthPrice(Number(e.target.value))}
+                      className="range-slider accent-primary"
+                      disabled={isUpdatingPrice}
+                    />
+                    <div className="flex justify-between text-[10px] text-muted mt-2 uppercase tracking-tighter">
+                      <span>Min: $1,000</span>
+                      <span>Current: $2,500</span>
+                      <span>Max: $4,000</span>
+                    </div>
+                    <div className="flex gap-2 mt-4">
+                      {[1200, 2000, 2500, 3500].map(price => (
+                        <button 
+                          key={price}
+                          className="btn btn-secondary px-2 py-1 text-[10px] min-w-0"
+                          onClick={() => setSimEthPrice(price)}
+                        >
+                          ${price}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  
+                  <button 
+                    className={`btn ${simEthPrice < 2000 ? 'btn-danger' : 'btn-primary'} h-full px-8 py-4 flex flex-col items-center justify-center gap-1`}
+                    onClick={() => handlePriceChange(simEthPrice)}
+                    disabled={isUpdatingPrice || !walletAddress}
+                    style={{ minWidth: '160px' }}
+                  >
+                    <Activity size={20} />
+                    <span className="text-xs font-bold">PUSH UPDATE</span>
+                  </button>
+                </div>
+                
+                {!walletAddress && (
+                  <p className="text-[10px] text-danger mt-3 text-center font-semibold">
+                    * Wallet connection required to push on-chain updates
+                  </p>
+                )}
+              </div>
+
               {/* PRICE MONITOR */}
               <div className="col-span-12 lg:col-span-4 card">
                 <div className="card-header">
@@ -412,11 +587,66 @@ function App() {
                 </div>
               </div>
 
+              {/* LIVE REACTIVITY FEED */}
+              <div className="col-span-12 lg:col-span-4 card border-accent/20">
+                <div className="card-header">
+                  <h3 className="card-title text-accent"><Activity size={18} /> Live Activity</h3>
+                  <div className="live-indicator">
+                    <span className="dot pulse"></span>
+                    Reactivity Active
+                  </div>
+                </div>
+                <div className="flex flex-col gap-3 max-h-[400px] overflow-y-auto pr-1 custom-scrollbar">
+                  {reactiveEvents.length === 0 ? (
+                    <div className="text-center py-10 opacity-40">
+                      <Database size={32} className="mx-auto mb-2" />
+                      <p className="text-sm">Waiting for Somnia events...</p>
+                      <p className="text-[10px] mt-1 text-secondary uppercase tracking-widest">Oracle update will trigger Keeper</p>
+                    </div>
+                  ) : (
+                    reactiveEvents.map(event => (
+                      <div key={event.id} className={`p-3 rounded-lg border bg-surface-hover flex flex-col gap-1 transition-all animate-in slide-in-from-right-4 duration-300 ${event.type === 'LIQUIDATION' ? 'border-danger/30 bg-danger/5' : 'border-white/5'}`}>
+                        <div className="flex justify-between items-center">
+                          <span className={`text-[10px] font-bold uppercase tracking-wider ${event.type === 'LIQUIDATION' ? 'text-danger' : 'text-accent'}`}>
+                            {event.type.replace('_', ' ')}
+                          </span>
+                          <span className="text-[10px] text-muted font-mono">{event.timestamp}</span>
+                        </div>
+                        {event.type === 'USER_CHECKED' && (
+                          <div className="text-xs">
+                            <span className="text-secondary">User:</span> <span className="font-mono">{truncateAddress(event.user)}</span>
+                            <br />
+                            <span className="text-secondary">Health Factor:</span> <span className={`font-mono font-bold ${Number(event.hf) < 1 ? 'text-danger' : 'text-safe'}`}>{event.hf}</span>
+                          </div>
+                        )}
+                        {event.type === 'LIQUIDATION' && (
+                          <div className="text-xs font-bold text-danger">
+                            ⚠️ AUTO-LIQUIDATING {truncateAddress(event.user)}
+                          </div>
+                        )}
+                        {event.type === 'SYNC_SUCCESS' && (
+                          <div className="text-xs text-secondary">
+                            Reactivity Engine synced {event.count} monitored users
+                          </div>
+                        )}
+                      </div>
+                    ))
+                  )}
+                </div>
+                
+                <div className="mt-4 pt-4 border-t border-white/5">
+                  <div className="flex items-center gap-2 text-[10px] text-muted uppercase tracking-widest">
+                    <Info size={12} />
+                    <span>Powered by Somnia Sub #21168</span>
+                  </div>
+                </div>
+              </div>
+
               {/* LIQUIDATION QUEUE */}
               <div className="col-span-12 lg:col-span-8 card">
                 <div className="card-header">
                   <h3 className="card-title"><AlertTriangle size={18} className="text-warning" /> At-Risk Queue</h3>
-                  <span className="badge badge-warning">Monitoring active</span>
+                  <span className="badge badge-warning">Auto-Keeper active</span>
                 </div>
                 <div className="overflow-x-auto">
                   <table className="data-table">
