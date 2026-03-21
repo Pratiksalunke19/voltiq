@@ -30,10 +30,8 @@ const MOCK_DATA = {
     { user: '0xB2...F9E4', healthFactor: 1.06, collateralValue: '$500', borrowValue: '$471' },
   ],
   collateralDistribution: [
-    { asset: 'WETH', percentage: 65, color: '#3b82f6' },
-    { asset: 'WBTC', percentage: 20, color: '#f59e0b' },
-    { asset: 'LINK', percentage: 10, color: '#8b5cf6' },
-    { asset: 'Other', percentage:  5, color: '#6b7280' },
+    { asset: 'WETH', amount: 0, percentage: 0, color: '#3b82f6' },
+    { asset: 'WBTC', amount: 0, percentage: 0, color: '#f59e0b' },
   ]
 };
 
@@ -44,11 +42,18 @@ function App() {
   const [isConnecting, setIsConnecting] = useState(false);
   const [data, setData] = useState(MOCK_DATA);
   const [provider, setProvider] = useState<ethers.BrowserProvider | null>(null);
-  const [simDrop, setSimDrop] = useState(0);
+  const [simPriceDrop, setSimPriceDrop] = useState(0);
+  const [simExtraCollateral, setSimExtraCollateral] = useState(0);
+  const [simRepayDebt, setSimRepayDebt] = useState(0);
   const [activeTab, setActiveTab] = useState<Tab>('dashboard');
   const [showWarning, setShowWarning] = useState(true);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [isLightMode, setIsLightMode] = useState(false);
+  const [walletBalances, setWalletBalances] = useState<Record<string, string>>({
+    WETH: '--',
+    WBTC: '--',
+    USDC: '--'
+  });
 
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', isLightMode ? 'light' : 'dark');
@@ -61,21 +66,29 @@ function App() {
       try {
         const jsonRpcProvider = new ethers.JsonRpcProvider("https://dream-rpc.somnia.network/");
         const oracle = new ethers.Contract(CONTRACT_ADDRESSES['ORACLE'], ABIS['ChainlinkPriceOracle'], jsonRpcProvider);
-        const priceBN = await oracle.getPrice(CONTRACT_ADDRESSES['WETH']);
-        const priceNum = Number(ethers.formatUnits(priceBN, 18));
         
-        if (active && priceNum > 0) {
-          setSimEthPrice(priceNum);
+        // Fetch WETH Price
+        const wethPriceBN = await oracle.getPrice(CONTRACT_ADDRESSES['WETH']);
+        const wethPriceNum = Number(ethers.formatUnits(wethPriceBN, 18));
+        
+        // Fetch WBTC Price
+        const wbtcPriceBN = await oracle.getPrice(CONTRACT_ADDRESSES['WBTC']);
+        const wbtcPriceNum = Number(ethers.formatUnits(wbtcPriceBN, 18));
+        
+        if (active) {
+          if (wethPriceNum > 0) setSimEthPrice(wethPriceNum);
+          
           setData(prev => ({
             ...prev,
             prices: {
               ...prev.prices,
-              WETH: priceNum
+              WETH: wethPriceNum > 0 ? wethPriceNum : prev.prices.WETH,
+              WBTC: wbtcPriceNum > 0 ? wbtcPriceNum : prev.prices.WBTC
             }
           }));
         }
       } catch (err) {
-        console.error("Failed to fetch initial oracle price", err);
+        console.error("Failed to fetch initial oracle prices", err);
       }
     };
     fetchOraclePrice();
@@ -90,16 +103,35 @@ function App() {
   const [mintAmount, setMintAmount] = useState('1000');
   const [mintAsset, setMintAsset] = useState('USDC');
 
-  // Determining health status
-  let healthStatus = 'safe';
-  if (data.healthFactor < 1.05) healthStatus = 'danger';
-  else if (data.healthFactor < 1.3) healthStatus = 'warning';
+  // Get status based on health factor
+  const getHealthStatus = (hf: number) => {
+    if (hf < 1.05) return 'danger';
+    if (hf < 1.3) return 'warning';
+    return 'safe';
+  };
+
+  const healthStatus = getHealthStatus(data.healthFactor);
+
+  // Risk Assessment Calculations:
+  // DROP % = (1 - 1/HF) * 100
+  const dropToLiquidate = data.borrowUsd > 0 && data.healthFactor > 1 
+    ? (1 - (1 / data.healthFactor)) * 100 
+    : 0;
+
+  // HF 1.2 = ((Collateral + Extra) * 0.8) / Debt
+  // 1.2 * Debt / 0.8 = Collateral + Extra
+  // 1.5 * Debt = Collateral + Extra
+  // Extra = (1.5 * Debt) - Collateral
+  const collateralToSafeZone = data.borrowUsd > 0 
+    ? Math.max(0, (1.5 * data.borrowUsd) - data.collateralUsd) 
+    : 0;
 
   // Live Activity State
   const [reactiveEvents, setReactiveEvents] = useState<any[]>([]);
   const [isUpdatingPrice, setIsUpdatingPrice] = useState(false);
   const [simEthPrice, setSimEthPrice] = useState(2500);
   const [liquidationCountdown, setLiquidationCountdown] = useState<number | null>(null);
+  const [hasLiquidated, setHasLiquidated] = useState(false);
 
   // Listen for Reactive Events
   useEffect(() => {
@@ -138,6 +170,9 @@ function App() {
         user, 
         hf: Number(ethers.formatUnits(hf, 18)).toFixed(4) 
       });
+      if (user.toLowerCase() === walletAddress?.toLowerCase()) {
+        setHasLiquidated(true);
+      }
     };
 
     const onEventSuccess = (_emitter: string, count: bigint) => {
@@ -207,11 +242,67 @@ function App() {
         hf = Number(ethers.formatUnits(pos.healthFactor.toString(), 18));
       }
 
+      // 1. Fetch individual collateral amounts
+      const wethCollateralBN = await positionManager.sUserCollateral(address, CONTRACT_ADDRESSES['WETH']);
+      const wbtcCollateralBN = await positionManager.sUserCollateral(address, CONTRACT_ADDRESSES['WBTC']);
+      
+      const wethAmount = Number(ethers.formatUnits(wethCollateralBN, 18));
+      const wbtcAmount = Number(ethers.formatUnits(wbtcCollateralBN, 18));
+
+      // 2. Fetch Wallet Balances
+      const wethToken = new ethers.Contract(CONTRACT_ADDRESSES['WETH'], ABIS['MockERC20'], provider);
+      const wbtcToken = new ethers.Contract(CONTRACT_ADDRESSES['WBTC'], ABIS['MockERC20'], provider);
+      const usdcToken = new ethers.Contract(CONTRACT_ADDRESSES['USDC'], ABIS['MockERC20'], provider);
+      
+      const [wethWallet, wbtcWallet, usdcWallet] = await Promise.all([
+        wethToken.balanceOf(address),
+        wbtcToken.balanceOf(address),
+        usdcToken.balanceOf(address)
+      ]);
+
+      setWalletBalances({
+        WETH: Number(ethers.formatUnits(wethWallet, 18)).toFixed(4),
+        WBTC: Number(ethers.formatUnits(wbtcWallet, 18)).toFixed(4),
+        USDC: Number(ethers.formatUnits(usdcWallet, 18)).toFixed(4)
+      });
+
+      // 3. Use prices from current state or fetch fresh
+      const oracle = new ethers.Contract(CONTRACT_ADDRESSES['ORACLE'], ABIS['ChainlinkPriceOracle'], provider);
+      const wethPriceBN = await oracle.getPrice(CONTRACT_ADDRESSES['WETH']);
+      const wbtcPriceBN = await oracle.getPrice(CONTRACT_ADDRESSES['WBTC']);
+      
+      const wethPrice = Number(ethers.formatUnits(wethPriceBN, 18));
+      const wbtcPrice = Number(ethers.formatUnits(wbtcPriceBN, 18));
+      
+      const wethValueUsd = wethAmount * wethPrice;
+      const wbtcValueUsd = wbtcAmount * wbtcPrice;
+      const totalValue = wethValueUsd + wbtcValueUsd;
+
+      let wethPercentage = 0;
+      let wbtcPercentage = 0;
+      
+      if (totalValue > 0) {
+        // Calculate percentages based on USD value
+        wethPercentage = Math.round((wethValueUsd / totalValue) * 100);
+        wbtcPercentage = 100 - wethPercentage; // Ensure it sums to exactly 100
+      }
+
+      const collateralDistribution = [
+        { asset: 'WETH', amount: wethAmount, percentage: wethPercentage, color: '#3b82f6' },
+        { asset: 'WBTC', amount: wbtcAmount, percentage: wbtcPercentage, color: '#f59e0b' },
+      ];
+
       setData(prev => ({
         ...prev,
         healthFactor: hf,
         collateralUsd: collateral,
-        borrowUsd: borrow
+        borrowUsd: borrow,
+        collateralDistribution,
+        prices: {
+          ...prev.prices,
+          WETH: wethPrice,
+          WBTC: wbtcPrice
+        }
       }));
     } catch(err) {
       console.error("Failed fetching user data", err);
@@ -332,6 +423,7 @@ function App() {
       let tx = await token.mint(walletAddress, ethers.parseEther(mintAmount));
       await tx.wait();
       
+      await fetchUserData(walletAddress, provider);
       alert(`Minted ${mintAmount} ${mintAsset} to your wallet!`);
     } catch(err) {
       console.error("Mint failed!", err);
@@ -339,6 +431,10 @@ function App() {
   };
 
   const handlePriceChange = async (newPrice: number) => {
+    setSimEthPrice(newPrice);
+    setHasLiquidated(false);
+    
+    // Optimistic UI update logic...
     if (!walletAddress || !provider) {
       alert("Please connect your wallet first!");
       return;
@@ -396,15 +492,10 @@ function App() {
     return `${address.slice(0, 6)}...${address.slice(-4)}`;
   };
 
-  const getSimImpact = (drop: number) => {
-    if (drop === 0) return { estLiquidations: "$0", accounts: 0, risk: "None", riskClass: "badge-safe" };
-    if (drop <= 5) return { estLiquidations: "$1.2M", accounts: 47, risk: "Low", riskClass: "badge-safe" };
-    if (drop <= 10) return { estLiquidations: "$4.5M", accounts: 120, risk: "Medium", riskClass: "badge-warning" };
-    if (drop <= 20) return { estLiquidations: "$12.8M", accounts: 350, risk: "High", riskClass: "badge-danger" };
-    return { estLiquidations: "$35.2M", accounts: 890, risk: "Critical", riskClass: "badge-danger" };
-  };
-
-  const simImpact = getSimImpact(simDrop);
+  const simCollateral = (data.collateralUsd * (1 - simPriceDrop / 100)) + simExtraCollateral;
+  const simDebt = Math.max(0, data.borrowUsd - simRepayDebt);
+  const simHf = simDebt > 0 ? (simCollateral * 0.8) / simDebt : (simCollateral > 0 ? 99 : 0);
+  const simStatus = getHealthStatus(simHf);
 
   return (
     <div className="app-layout">
@@ -459,6 +550,11 @@ function App() {
               <span className="dot"></span>
               Somnia RPC Active
             </div>
+            {hasLiquidated && (
+              <span className="badge badge-danger text-[10px] animate-pulse">
+                <ShieldAlert size={12} /> PARTIAL LIQUIDATION EXECUTED
+              </span>
+            )}
           </div>
           
           <div className="topbar-actions">
@@ -568,6 +664,24 @@ function App() {
                     />
                   </div>
                   <p className="text-xs text-muted mt-3">Liquidation is publicly triggered if Health Factor drops below 1.0.</p>
+                  
+                  {healthStatus !== 'safe' && data.borrowUsd > 0 && (
+                    <div className="mt-4 pt-4 border-t border-white/5 flex flex-col gap-2 p-3 bg-white/5 rounded-lg animate-in fade-in slide-in-from-top-2 duration-500">
+                      <div className="flex items-center gap-2 text-sm">
+                        <AlertTriangle size={16} className={`text-${healthStatus}`} />
+                        <span className={`font-bold text-${healthStatus}`}>
+                          {healthStatus === 'danger' ? 'Liquidation imminent' : 'Position at Risk'} — Health Factor at {data.healthFactor.toFixed(2)}
+                        </span>
+                      </div>
+                      <div className="text-sm text-secondary leading-relaxed flex flex-col gap-1">
+                        <div>Price drop of <span className="text-white font-bold font-mono">{dropToLiquidate.toFixed(1)}%</span> will trigger automatic liquidation.</div>
+                        <div className="flex items-center gap-1">
+                          <ShieldCheck size={12} className="text-safe" />
+                          <span>Add <span className="text-safe font-bold font-mono">{formatCurrency(collateralToSafeZone)}</span> collateral to reach safe zone (HF 1.2).</span>
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </div>
 
                 <div className="flex gap-4 flex-col md:flex-row mb-6">
@@ -657,6 +771,130 @@ function App() {
                 </div>
               </div>
 
+              {/* ADVANCED SIMULATOR */}
+              <div className="col-span-12 lg:col-span-8 card">
+                <div className="card-header">
+                  <h3 className="card-title"><Sliders size={18} className="text-accent" /> Position Simulator</h3>
+                  <div className="badge badge-neutral">Draft Model</div>
+                </div>
+                
+                <p className="text-secondary text-xs px-2 mb-4">Drag sliders to model how market volatility or balance changes affect your safety factor.</p>
+                
+                <div className="flex flex-col gap-6 p-2">
+                  {/* Price Drop Slider */}
+                  <div className="flex items-center gap-6">
+                    <span className="w-40 text-sm font-semibold text-secondary">Collateral price drop</span>
+                    <input 
+                      type="range" min="0" max="100" step="1" 
+                      value={simPriceDrop} onChange={(e) => setSimPriceDrop(Number(e.target.value))}
+                      className="flex-1 range-slider"
+                    />
+                    <span className="w-12 text-sm font-mono font-bold text-right">{simPriceDrop}%</span>
+                  </div>
+
+                  {/* Extra Collateral Slider */}
+                  <div className="flex items-center gap-6">
+                    <span className="w-40 text-sm font-semibold text-secondary">Extra collateral deposit</span>
+                    <input 
+                      type="range" min="0" max={10000} step={100} 
+                      value={simExtraCollateral} onChange={(e) => setSimExtraCollateral(Number(e.target.value))}
+                      className="flex-1 range-slider"
+                    />
+                    <span className="w-20 text-sm font-mono font-bold text-right">${simExtraCollateral.toLocaleString()}</span>
+                  </div>
+
+                  {/* Repay Debt Slider */}
+                  <div className="flex items-center gap-6">
+                    <span className="w-40 text-sm font-semibold text-secondary">Repay debt</span>
+                    <input 
+                      type="range" min="0" max={Math.round(data.borrowUsd)} step={10} 
+                      value={simRepayDebt} onChange={(e) => setSimRepayDebt(Number(e.target.value))}
+                      className="flex-1 range-slider"
+                    />
+                    <span className="w-20 text-sm font-mono font-bold text-right">${simRepayDebt.toLocaleString()}</span>
+                  </div>
+
+                  {/* Result area */}
+                  <div className="bg-panel rounded-xl p-6 mt-4 border border-white/5">
+                    <div className="flex justify-between items-center mb-4">
+                      <div>
+                        <div className="flex items-center gap-2 mb-1">
+                          <p className="text-sm font-semibold text-secondary uppercase tracking-wider">Simulated Health Factor</p>
+                          <span className={`badge badge-${simStatus} text-[10px] py-0 px-2 h-5`}>
+                             {simStatus === 'safe' ? 'Safe' : simStatus === 'danger' ? 'Critical' : 'Warning'}
+                          </span>
+                        </div>
+                        <p className="text-xs text-muted mb-0">
+                          {simHf < 1.0 ? 'Position will be liquidated' : simHf < 1.3 ? 'Position is at risk' : 'Healthy position buffer'}
+                        </p>
+                      </div>
+                      <div className={`text-4xl font-bold font-mono text-${simStatus}`}>
+                        {simHf > 9.9 ? '>9.99' : simHf.toFixed(2)}
+                      </div>
+                    </div>
+
+                    <div className="progress-bar-bg h-2">
+                      <div 
+                        className="progress-bar-fill"
+                        style={{ 
+                          width: `${Math.min((simHf / 2) * 100, 100)}%`,
+                          backgroundColor: `var(--${simStatus === 'danger' ? 'danger-red' : simStatus === 'warning' ? 'warning-yellow' : 'safe-green'})`
+                        }}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="flex gap-4 mt-2">
+                    <button className="flex-1 p-3 rounded-lg border border-white/5 bg-surface-hover hover:border-accent/40 transition-all text-left group">
+                      <div className="text-accent font-bold text-sm flex items-center gap-1 group-hover:text-white transition-colors">
+                        Get exact recommendation <ArrowUpRight size={14} className="group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
+                      </div>
+                      <div className="text-[10px] text-muted">AI-powered safe amount</div>
+                    </button>
+                    <button className="flex-1 p-3 rounded-lg border border-white/5 bg-surface-hover hover:border-white/20 transition-all text-left group">
+                      <div className="text-white font-bold text-sm flex items-center gap-1">
+                        Explain my risk <ArrowUpRight size={14} className="group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
+                      </div>
+                      <div className="text-[10px] text-muted">Plain-language breakdown</div>
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              {/* COLLATERAL DISTRIBUTION */}
+              <div className="col-span-12 lg:col-span-4 card" style={{ paddingBottom: '1.5rem' }}>
+                <div className="card-header">
+                  <h3 className="card-title"><PieChart size={18} className="text-accent" /> Asset Distribution</h3>
+                </div>
+                
+                <div className="chart-container mb-6">
+                  {data.collateralDistribution.map((item, i) => (
+                    <div 
+                      key={i} 
+                      style={{ width: `${item.percentage}%`, backgroundColor: item.color }} 
+                      title={`${item.asset}: ${item.percentage}%`} 
+                    />
+                  ))}
+                </div>
+                
+                <div className="grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '0.5rem' }}>
+                  {data.collateralDistribution.map((item, i) => (
+                    <div key={i} className="flex flex-col bg-surface-hover rounded-lg p-2 px-3 border border-transparent">
+                      <div className="flex justify-between items-center mb-1">
+                        <div className="flex items-center gap-2">
+                          <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: item.color }} />
+                          <span className="text-sm font-semibold text-secondary">{item.asset}</span>
+                        </div>
+                        <span className="text-sm font-bold font-mono">{item.percentage}%</span>
+                      </div>
+                      <div className="text-[10px] text-muted font-mono flex justify-end">
+                        {item.amount?.toFixed(4) || "0.0000"} {item.asset}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
               {/* LIVE PRICE FEED CONTROLLER */}
               <div className="col-span-12 lg:col-span-8 card border-accent/20 bg-accent/5">
                 <div className="card-header">
@@ -707,6 +945,7 @@ function App() {
                     </div>
                   </div>
                   
+                  <div className="w-full h-full flex items-center justify-center">
                   <button 
                     className={`btn ${simEthPrice < 2000 ? 'btn-danger' : 'btn-primary'} h-full px-8 py-4 flex flex-col items-center justify-center gap-1`}
                     onClick={() => handlePriceChange(simEthPrice)}
@@ -716,6 +955,7 @@ function App() {
                     <Activity size={20} />
                     <span className="text-xs font-bold">PUSH UPDATE</span>
                   </button>
+                  </div>
                 </div>
                 
                 {!walletAddress && (
@@ -744,114 +984,6 @@ function App() {
                 </div>
               </div>
 
-              {/* LIQUIDATION QUEUE */}
-              <div className="col-span-12 lg:col-span-8 card">
-                <div className="card-header">
-                  <h3 className="card-title"><AlertTriangle size={18} className="text-warning" /> At-Risk Queue</h3>
-                  <span className="badge badge-warning">Auto-Keeper active</span>
-                </div>
-                <div className="overflow-x-auto">
-                  <table className="data-table">
-                    <thead>
-                      <tr>
-                        <th>User Account</th>
-                        <th>Health Factor</th>
-                        <th>Collateral</th>
-                        <th>Debt</th>
-                        <th className="text-right">Action</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {data.liquidationQueue.map((item, i) => (
-                        <tr key={i}>
-                          <td className="font-mono">{item.user}</td>
-                          <td className="text-danger font-bold text-lg font-mono">
-                            {item.healthFactor.toFixed(2)}
-                          </td>
-                          <td className="text-muted">{item.collateralValue}</td>
-                          <td className="text-muted">{item.borrowValue}</td>
-                          <td className="text-right">
-                            <button className="btn btn-secondary" style={{ padding: '0.375rem 0.75rem', fontSize: '0.75rem' }} disabled>
-                              Liquidate
-                            </button>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-
-              {/* DISTRIBUTION AND SIMULATOR COLUMN */}
-              <div className="col-span-12 lg:col-span-4 flex flex-col gap-6">
-                
-                {/* COLLATERAL DISTRIBUTION */}
-                <div className="card" style={{ paddingBottom: '1.5rem', flex: 'none' }}>
-                  <div className="card-header">
-                    <h3 className="card-title"><PieChart size={18} className="text-accent" /> Asset Distribution</h3>
-                  </div>
-                  
-                  <div className="chart-container mb-6">
-                    {data.collateralDistribution.map((item, i) => (
-                      <div 
-                        key={i} 
-                        style={{ width: `${item.percentage}%`, backgroundColor: item.color }} 
-                        title={`${item.asset}: ${item.percentage}%`} 
-                      />
-                    ))}
-                  </div>
-                  
-                  <div className="grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '0.5rem' }}>
-                    {data.collateralDistribution.map((item, i) => (
-                      <div key={i} className="flex justify-between items-center bg-surface-hover rounded-lg p-2 px-3 border border-transparent">
-                        <div className="flex items-center gap-2">
-                          <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: item.color }} />
-                          <span className="text-sm text-secondary">{item.asset}</span>
-                        </div>
-                        <span className="text-sm font-bold font-mono">{item.percentage}%</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                {/* SIMULATION TOOL */}
-                <div className="card" style={{ flex: '1' }}>
-                  <div className="card-header">
-                    <h3 className="card-title text-accent"><Sliders size={18} /> Simulation Tool</h3>
-                  </div>
-                  
-                  <div className="bg-panel rounded-xl p-4 mb-4">
-                    <div className="flex justify-between items-center mb-3">
-                      <span className="text-sm font-semibold text-secondary">Simulate ETH Price Drop</span>
-                      <span className="font-bold text-danger font-mono text-lg">-{simDrop}%</span>
-                    </div>
-                    <input 
-                      type="range" 
-                      min="0" 
-                      max="50" 
-                      step="5" 
-                      value={simDrop} 
-                      onChange={(e) => setSimDrop(Number(e.target.value))}
-                      className="range-slider"
-                    />
-                  </div>
-
-                  <div className="bg-surface-hover border rounded-xl p-4 flex flex-col gap-3">
-                    <div className="flex justify-between items-center text-sm">
-                      <span className="text-secondary">Est. Liquidations</span>
-                      <span className="font-mono font-bold text-lg">{simImpact.estLiquidations}</span>
-                    </div>
-                    <div className="flex justify-between items-center text-sm">
-                      <span className="text-secondary">Affected Accounts</span>
-                      <span className="font-mono font-bold text-lg">{simImpact.accounts}</span>
-                    </div>
-                    <div className="flex justify-between items-center text-sm pt-2" style={{ borderTop: '1px dashed var(--border-color)' }}>
-                      <span className="text-secondary">Protocol Risk</span>
-                      <span className={`badge ${simImpact.riskClass}`}>{simImpact.risk}</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
               
               {/* KPI STAT CARDS */}
               <div className="col-span-12 lg:col-span-3 stat-card">
@@ -893,7 +1025,6 @@ function App() {
                     >
                       <option value="WETH">WETH</option>
                       <option value="WBTC">WBTC</option>
-                      <option value="LINK">LINK</option>
                     </select>
                   </div>
 
@@ -1019,7 +1150,6 @@ function App() {
                   >
                     <option value="WETH">WETH</option>
                     <option value="WBTC">WBTC</option>
-                    <option value="LINK">LINK</option>
                     <option value="USDC">USDC</option>
                   </select>
                 </div>
@@ -1050,11 +1180,15 @@ function App() {
                   <div className="grid grid-cols-2 gap-3" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
                     <div className="bg-panel p-3 rounded-lg flex justify-between">
                       <span className="text-sm">WETH</span>
-                      <span className="font-mono text-sm">--</span>
+                      <span className="font-mono text-sm">{walletBalances.WETH}</span>
+                    </div>
+                    <div className="bg-panel p-3 rounded-lg flex justify-between">
+                      <span className="text-sm">WBTC</span>
+                      <span className="font-mono text-sm">{walletBalances.WBTC}</span>
                     </div>
                     <div className="bg-panel p-3 rounded-lg flex justify-between">
                       <span className="text-sm">USDC</span>
-                      <span className="font-mono text-sm">--</span>
+                      <span className="font-mono text-sm">{walletBalances.USDC}</span>
                     </div>
                   </div>
                 </div>
