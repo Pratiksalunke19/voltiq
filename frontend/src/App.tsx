@@ -4,7 +4,7 @@ import {
   PieChart, Sliders, AlertTriangle, LineChart, LayoutDashboard,
   RefreshCcw, ArrowRightLeft, Database, Activity,
   ArrowUpRight, ArrowDownLeft, Coins, Info,
-  Menu, Moon, Sun
+  Menu, Moon, Sun, Settings, Download, User
 } from 'lucide-react';
 import { ethers } from 'ethers';
 import './index.css';
@@ -35,7 +35,7 @@ const MOCK_DATA = {
   ]
 };
 
-type Tab = 'dashboard' | 'borrow' | 'markets' | 'liquidations' | 'faucet' | 'activity';
+type Tab = 'dashboard' | 'borrow' | 'profile' | 'markets' | 'liquidations' | 'faucet' | 'activity' | 'settings';
 
 function App() {
   const [walletAddress, setWalletAddress] = useState<string | null>(null);
@@ -43,8 +43,8 @@ function App() {
   const [data, setData] = useState(MOCK_DATA);
   const [provider, setProvider] = useState<ethers.BrowserProvider | null>(null);
   const [simPriceDrop, setSimPriceDrop] = useState(0);
-  const [simExtraCollateral, setSimExtraCollateral] = useState(0);
-  const [simRepayDebt, setSimRepayDebt] = useState(0);
+  const [simRepayAmount, setSimRepayAmount] = useState(0);
+  const [simBorrowDebt, setSimBorrowDebt] = useState(0);
   const [activeTab, setActiveTab] = useState<Tab>('dashboard');
   const [showWarning, setShowWarning] = useState(true);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
@@ -75,6 +75,10 @@ function App() {
         const wbtcPriceBN = await oracle.getPrice(CONTRACT_ADDRESSES['WBTC']);
         const wbtcPriceNum = Number(ethers.formatUnits(wbtcPriceBN, 18));
         
+        // Fetch LINK Price
+        const linkPriceBN = await oracle.getPrice(CONTRACT_ADDRESSES['LINK']);
+        const linkPriceNum = Number(ethers.formatUnits(linkPriceBN, 18));
+        
         if (active) {
           if (wethPriceNum > 0) setSimEthPrice(wethPriceNum);
           
@@ -83,7 +87,9 @@ function App() {
             prices: {
               ...prev.prices,
               WETH: wethPriceNum > 0 ? wethPriceNum : prev.prices.WETH,
-              WBTC: wbtcPriceNum > 0 ? wbtcPriceNum : prev.prices.WBTC
+              WBTC: wbtcPriceNum > 0 ? wbtcPriceNum : prev.prices.WBTC,
+              LINK: linkPriceNum > 0 ? linkPriceNum : prev.prices.LINK,
+              USDC: 1.00
             }
           }));
         }
@@ -103,6 +109,11 @@ function App() {
   const [mintAmount, setMintAmount] = useState('1000');
   const [mintAsset, setMintAsset] = useState('USDC');
 
+  // Multi-converter states
+  const [converterAmount, setConverterAmount] = useState('1');
+  const [converterAsset, setConverterAsset] = useState('WETH');
+  const [converterToUsd, setConverterToUsd] = useState(true);
+
   // Get status based on health factor
   const getHealthStatus = (hf: number) => {
     if (hf < 1.05) return 'danger';
@@ -118,12 +129,12 @@ function App() {
     ? (1 - (1 / data.healthFactor)) * 100 
     : 0;
 
-  // HF 1.2 = ((Collateral + Extra) * 0.8) / Debt
-  // 1.2 * Debt / 0.8 = Collateral + Extra
-  // 1.5 * Debt = Collateral + Extra
-  // Extra = (1.5 * Debt) - Collateral
+  // HF 1.3 = ((Collateral + Extra) * 0.8) / Debt
+  // 1.3 * Debt / 0.8 = Collateral + Extra
+  // 1.625 * Debt = Collateral + Extra
+  // Extra = (1.625 * Debt) - Collateral
   const collateralToSafeZone = data.borrowUsd > 0 
-    ? Math.max(0, (1.5 * data.borrowUsd) - data.collateralUsd) 
+    ? Math.max(0, (1.625 * data.borrowUsd) - data.collateralUsd) 
     : 0;
 
   // Live Activity State
@@ -143,40 +154,50 @@ function App() {
       provider
     );
 
-    const handleEvent = (type: string, details: any) => {
-      setReactiveEvents(prev => [{
-        id: Date.now(),
-        type,
-        timestamp: new Date().toLocaleTimeString(),
-        ...details
-      }, ...prev].slice(0, 50)); // Keep last 50 for separate page
+    const handleEvent = (type: string, details: any, eventData?: any) => {
+      setReactiveEvents(prev => {
+        // Create a unique key for the event if possible
+        const eventId = eventData?.log?.transactionHash && eventData?.log?.index !== undefined
+          ? `${eventData.log.transactionHash}-${eventData.log.index}`
+          : `${type}-${Date.now()}`;
+
+        // Deduplication check
+        if (prev.some(e => e.id === eventId)) return prev;
+
+        return [{
+          id: eventId,
+          type,
+          timestamp: new Date().toLocaleTimeString(),
+          ...details
+        }, ...prev].slice(0, 50);
+      });
     };
 
     // Subscriptions
-    const onUserChecked = (user: string, hf: bigint) => {
+    const onUserChecked = (user: string, hf: bigint, event: any) => {
       console.log("Reactivity: User Checked", user, hf);
       handleEvent('USER_CHECKED', { 
         user, 
         hf: Number(ethers.formatUnits(hf, 18)).toFixed(4) 
-      });
+      }, event);
       if (user.toLowerCase() === walletAddress.toLowerCase()) {
         fetchUserData(walletAddress, provider);
       }
     };
 
-    const onLiquidation = (user: string, hf: bigint) => {
+    const onLiquidation = (user: string, hf: bigint, event: any) => {
       console.log("Reactivity: LIQUIDATION TRIGGERED", user);
       handleEvent('LIQUIDATION', { 
         user, 
         hf: Number(ethers.formatUnits(hf, 18)).toFixed(4) 
-      });
+      }, event);
       if (user.toLowerCase() === walletAddress?.toLowerCase()) {
         setHasLiquidated(true);
       }
     };
 
-    const onEventSuccess = (_emitter: string, count: bigint) => {
-      handleEvent('SYNC_SUCCESS', { count: count.toString() });
+    const onEventSuccess = (_emitter: string, count: bigint, event: any) => {
+      handleEvent('SYNC_SUCCESS', { count: count.toString() }, event);
     };
 
     engine.on("DebugUserChecked", onUserChecked);
@@ -270,9 +291,11 @@ function App() {
       const oracle = new ethers.Contract(CONTRACT_ADDRESSES['ORACLE'], ABIS['ChainlinkPriceOracle'], provider);
       const wethPriceBN = await oracle.getPrice(CONTRACT_ADDRESSES['WETH']);
       const wbtcPriceBN = await oracle.getPrice(CONTRACT_ADDRESSES['WBTC']);
+      const linkPriceBN = await oracle.getPrice(CONTRACT_ADDRESSES['LINK']);
       
       const wethPrice = Number(ethers.formatUnits(wethPriceBN, 18));
       const wbtcPrice = Number(ethers.formatUnits(wbtcPriceBN, 18));
+      const linkPrice = Number(ethers.formatUnits(linkPriceBN, 18));
       
       const wethValueUsd = wethAmount * wethPrice;
       const wbtcValueUsd = wbtcAmount * wbtcPrice;
@@ -301,7 +324,9 @@ function App() {
         prices: {
           ...prev.prices,
           WETH: wethPrice,
-          WBTC: wbtcPrice
+          WBTC: wbtcPrice,
+          LINK: linkPrice,
+          USDC: 1.00
         }
       }));
     } catch(err) {
@@ -492,9 +517,9 @@ function App() {
     return `${address.slice(0, 6)}...${address.slice(-4)}`;
   };
 
-  const simCollateral = (data.collateralUsd * (1 - simPriceDrop / 100)) + simExtraCollateral;
-  const simDebt = Math.max(0, data.borrowUsd - simRepayDebt);
-  const simHf = simDebt > 0 ? (simCollateral * 0.8) / simDebt : (simCollateral > 0 ? 99 : 0);
+  const simCollateral = data.collateralUsd * (1 - simPriceDrop / 100);
+  const simDebt = Math.max(0, data.borrowUsd + simBorrowDebt - simRepayAmount);
+  const simHf = simDebt > 0 ? (simCollateral * 0.8) / simDebt : (simCollateral > 0 ? 9.99 : 0);
   const simStatus = getHealthStatus(simHf);
 
   return (
@@ -520,6 +545,10 @@ function App() {
             <ArrowRightLeft size={20} />
             <span>Borrow / Repay</span>
           </div>
+          <div className={`nav-item ${activeTab === 'profile' ? 'active' : ''}`} onClick={() => setActiveTab('profile')} title="Profile">
+            <User size={20} />
+            <span>Profile</span>
+          </div>
           {/* <div className={`nav-item ${activeTab === 'liquidations' ? 'active' : ''}`} onClick={() => setActiveTab('liquidations')} title="Liquidations">
             <ShieldAlert size={20} />
             <span>Liquidations</span>
@@ -527,6 +556,10 @@ function App() {
           <div className={`nav-item ${activeTab === 'faucet' ? 'active' : ''}`} onClick={() => setActiveTab('faucet')} title="Faucet">
             <Coins size={20} />
             <span>Faucet</span>
+          </div>
+          <div className={`nav-item ${activeTab === 'settings' ? 'active' : ''}`} onClick={() => setActiveTab('settings')} title="Settings">
+            <Settings size={20} />
+            <span>Settings</span>
           </div>
         </nav>
         <div className="sidebar-footer">
@@ -636,7 +669,7 @@ function App() {
               )}
 
               {/* YOUR POSITION CARD */}
-              <div className="col-span-12 lg:col-span-8 card">
+              <div className="col-span-12 lg:col-span-12 card">
                 <div className="card-header">
                   <h3 className="card-title">Your Position</h3>
                   <span className={`badge badge-${healthStatus}`}>
@@ -651,7 +684,7 @@ function App() {
                   <div className="flex justify-between items-center mb-2">
                     <span className="font-semibold text-secondary">Health Factor</span>
                     <span className={`text-xl font-bold font-mono text-${healthStatus}`}>
-                      {data.borrowUsd === 0 ? '∞' : data.healthFactor.toFixed(2)}
+                      {data.borrowUsd === 0 ? (data.collateralUsd > 0 ? '>9.99' : '0.00') : (data.healthFactor > 9.9 ? '>9.99' : data.healthFactor.toFixed(2))}
                     </span>
                   </div>
                   <div className="progress-bar-bg">
@@ -677,7 +710,7 @@ function App() {
                         <div>Price drop of <span className="text-white font-bold font-mono">{dropToLiquidate.toFixed(1)}%</span> will trigger automatic liquidation.</div>
                         <div className="flex items-center gap-1">
                           <ShieldCheck size={12} className="text-safe" />
-                          <span>Add <span className="text-safe font-bold font-mono">{formatCurrency(collateralToSafeZone)}</span> collateral to reach safe zone (HF 1.2).</span>
+                          <span>Add <span className="text-safe font-bold font-mono">{formatCurrency(collateralToSafeZone)}</span> collateral to reach safe zone (HF 1.3).</span>
                         </div>
                       </div>
                     </div>
@@ -705,74 +738,10 @@ function App() {
                 </div>
               </div>
 
-              {/* LIVE REACTIVITY FEED */}
-              <div className="col-span-12 lg:col-span-4 card border-accent/20">
-                <div className="card-header">
-                  <h3 className="card-title text-accent"><Activity size={18} /> Live Activity</h3>
-                  <div className="live-indicator">
-                    <span className="dot pulse"></span>
-                    Reactivity Active
-                  </div>
-                </div>
-                <div className="flex flex-col gap-3 max-h-[400px] overflow-y-auto pr-1 custom-scrollbar">
-                  {reactiveEvents.length === 0 ? (
-                    <div className="text-center py-10 opacity-40">
-                      <Database size={32} className="mx-auto mb-2" />
-                      <p className="text-sm">Waiting for Somnia events...</p>
-                      <p className="text-[10px] mt-1 text-secondary uppercase tracking-widest">Oracle update will trigger Keeper</p>
-                    </div>
-                  ) : (
-                    <>
-                      {reactiveEvents.slice(0, 4).map(event => (
-                        <div key={event.id} className={`p-3 rounded-lg border bg-surface-hover flex flex-col gap-1 transition-all animate-in slide-in-from-right-4 duration-300 ${event.type === 'LIQUIDATION' ? 'border-danger/30 bg-danger/5' : 'border-white/5'}`}>
-                          <div className="flex justify-between items-center">
-                            <span className={`text-[10px] font-bold uppercase tracking-wider ${event.type === 'LIQUIDATION' ? 'text-danger' : 'text-accent'}`}>
-                              {event.type.replace('_', ' ')}
-                            </span>
-                            <span className="text-[10px] text-muted font-mono">{event.timestamp}</span>
-                          </div>
-                          {event.type === 'USER_CHECKED' && (
-                            <div className="text-xs">
-                              <span className="text-secondary">User:</span> <span className="font-mono">{truncateAddress(event.user)}</span>
-                              <br />
-                              <span className="text-secondary">Health Factor:</span> <span className={`font-mono font-bold ${Number(event.hf) < 1 ? 'text-danger' : 'text-safe'}`}>{event.hf}</span>
-                            </div>
-                          )}
-                          {event.type === 'LIQUIDATION' && (
-                            <div className="text-xs font-bold text-danger">
-                              ⚠️ AUTO-LIQUIDATING {truncateAddress(event.user)}
-                            </div>
-                          )}
-                          {event.type === 'SYNC_SUCCESS' && (
-                            <div className="text-xs text-secondary">
-                              Reactivity Engine synced {event.count} monitored users
-                            </div>
-                          )}
-                        </div>
-                      ))}
-                      {reactiveEvents.length > 4 && (
-                        <button 
-                          className="btn btn-secondary w-full border border-white/5 bg-panel" 
-                          style={{ padding: '0.5rem', fontSize: '0.75rem', marginTop: '0.25rem' }}
-                          onClick={() => setActiveTab('activity')}
-                        >
-                          View All Activity Logs ({reactiveEvents.length})
-                        </button>
-                      )}
-                    </>
-                  )}
-                </div>
-                
-                <div className="mt-4 pt-4 border-t border-white/5">
-                  <div className="flex items-center gap-2 text-[10px] text-muted uppercase tracking-widest">
-                    <Info size={12} />
-                    <span>Powered by Somnia Sub #21168</span>
-                  </div>
-                </div>
-              </div>
-
+              {/* LIVE REACTIVITY FEED (Moved to Profile) */}
+              
               {/* ADVANCED SIMULATOR */}
-              <div className="col-span-12 lg:col-span-8 card">
+              <div className="col-span-12 lg:col-span-12 card">
                 <div className="card-header">
                   <h3 className="card-title"><Sliders size={18} className="text-accent" /> Position Simulator</h3>
                   <div className="badge badge-neutral">Draft Model</div>
@@ -794,24 +763,24 @@ function App() {
 
                   {/* Extra Collateral Slider */}
                   <div className="flex items-center gap-6">
-                    <span className="w-40 text-sm font-semibold text-secondary">Extra collateral deposit</span>
+                    <span className="w-40 text-sm font-semibold text-secondary">Repay Debt</span>
                     <input 
-                      type="range" min="0" max={10000} step={100} 
-                      value={simExtraCollateral} onChange={(e) => setSimExtraCollateral(Number(e.target.value))}
+                      type="range" min="0" max={Math.max(10000, Math.round(data.borrowUsd))} step={Math.max(10, Math.round(data.borrowUsd / 100))} 
+                      value={simRepayAmount} onChange={(e) => setSimRepayAmount(Number(e.target.value))}
                       className="flex-1 range-slider"
                     />
-                    <span className="w-20 text-sm font-mono font-bold text-right">${simExtraCollateral.toLocaleString()}</span>
+                    <span className="w-20 text-sm font-mono font-bold text-right">${simRepayAmount.toLocaleString()}</span>
                   </div>
 
-                  {/* Repay Debt Slider */}
+                  {/* Borrow Extra Slider */}
                   <div className="flex items-center gap-6">
-                    <span className="w-40 text-sm font-semibold text-secondary">Repay debt</span>
+                    <span className="w-40 text-sm font-semibold text-secondary">Borrow extra</span>
                     <input 
-                      type="range" min="0" max={Math.round(data.borrowUsd)} step={10} 
-                      value={simRepayDebt} onChange={(e) => setSimRepayDebt(Number(e.target.value))}
+                      type="range" min="0" max={Math.max(10000, Math.round(data.collateralUsd))} step={Math.max(1, Math.round(data.collateralUsd / 100))} 
+                      value={simBorrowDebt} onChange={(e) => setSimBorrowDebt(Number(e.target.value))}
                       className="flex-1 range-slider"
                     />
-                    <span className="w-20 text-sm font-mono font-bold text-right">${simRepayDebt.toLocaleString()}</span>
+                    <span className="w-20 text-sm font-mono font-bold text-right">${simBorrowDebt.toLocaleString()}</span>
                   </div>
 
                   {/* Result area */}
@@ -861,39 +830,7 @@ function App() {
                 </div>
               </div>
 
-              {/* COLLATERAL DISTRIBUTION */}
-              <div className="col-span-12 lg:col-span-4 card" style={{ paddingBottom: '1.5rem' }}>
-                <div className="card-header">
-                  <h3 className="card-title"><PieChart size={18} className="text-accent" /> Asset Distribution</h3>
-                </div>
-                
-                <div className="chart-container mb-6">
-                  {data.collateralDistribution.map((item, i) => (
-                    <div 
-                      key={i} 
-                      style={{ width: `${item.percentage}%`, backgroundColor: item.color }} 
-                      title={`${item.asset}: ${item.percentage}%`} 
-                    />
-                  ))}
-                </div>
-                
-                <div className="grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '0.5rem' }}>
-                  {data.collateralDistribution.map((item, i) => (
-                    <div key={i} className="flex flex-col bg-surface-hover rounded-lg p-2 px-3 border border-transparent">
-                      <div className="flex justify-between items-center mb-1">
-                        <div className="flex items-center gap-2">
-                          <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: item.color }} />
-                          <span className="text-sm font-semibold text-secondary">{item.asset}</span>
-                        </div>
-                        <span className="text-sm font-bold font-mono">{item.percentage}%</span>
-                      </div>
-                      <div className="text-[10px] text-muted font-mono flex justify-end">
-                        {item.amount?.toFixed(4) || "0.0000"} {item.asset}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
+              {/* COLLATERAL DISTRIBUTION (Moved to Profile) */}
 
               {/* LIVE PRICE FEED CONTROLLER */}
               <div className="col-span-12 lg:col-span-8 card border-accent/20 bg-accent/5">
@@ -1115,17 +1052,230 @@ function App() {
                 </div>
               </div>
 
-              <div className="card mt-6">
+              {/* TOKEN PRICE CONVERTER */}
+              <div className="card mt-6 border-accent/10 bg-accent/5">
+                <div className="card-header mb-6">
+                  <div className="flex flex-col">
+                    <h3 className="card-title text-accent">
+                      <RefreshCcw size={18} /> Price Converter
+                    </h3>
+                    <p className="text-[10px] text-muted uppercase tracking-widest mt-1">Real-time Oracle Rates</p>
+                  </div>
+                  <div className="badge badge-neutral text-[10px]">Somnia Feed Sync</div>
+                </div>
+                
+                <div className="flex flex-col md:flex-row items-center gap-4">
+                  {/* FROM */}
+                  <div className="flex-1 w-full bg-panel p-4 rounded-xl border border-white/5">
+                    <label className="text-[10px] font-bold text-secondary uppercase tracking-widest mb-2 block">
+                      {converterToUsd ? 'You Convert' : 'You Provide'}
+                    </label>
+                    <div className="flex items-center gap-3">
+                      <input 
+                        type="number" 
+                        className="bg-transparent border-none text-xl font-bold font-mono text-white outline-none w-full"
+                        value={converterAmount} 
+                        onChange={(e) => setConverterAmount(e.target.value)}
+                        placeholder="0.00"
+                      />
+                      <div className="flex items-center gap-1 bg-surface-hover px-2 py-1 rounded-lg border border-white/10">
+                        {converterToUsd ? (
+                          <select 
+                            className="bg-transparent border-none text-xs font-bold text-white outline-none cursor-pointer pr-4 uppercase"
+                            value={converterAsset}
+                            onChange={(e) => setConverterAsset(e.target.value)}
+                            style={{ backgroundImage: 'none', paddingRight: '0.25rem' }}
+                          >
+                            <option value="WETH">WETH</option>
+                            <option value="WBTC">WBTC</option>
+                            <option value="LINK">LINK</option>
+                            <option value="USDC">USDC</option>
+                          </select>
+                        ) : (
+                          <span className="text-xs font-bold px-1">USD</span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* SWAP ICON */}
+                  <button 
+                    className="p-3 rounded-full bg-accent/10 hover:bg-accent/20 border border-accent/20 text-accent transition-all group"
+                    onClick={() => setConverterToUsd(!converterToUsd)}
+                  >
+                    <ArrowRightLeft size={18} className={`transition-transform duration-300 ${converterToUsd ? 'rotate-0' : 'rotate-180'}`} />
+                  </button>
+
+                  {/* TO */}
+                  <div className="flex-1 w-full bg-accent/10 p-4 rounded-xl border border-accent/20">
+                    <label className="text-[10px] font-bold text-accent uppercase tracking-widest mb-2 block">
+                      {converterToUsd ? 'Estimated Value' : `Resulting ${converterAsset}`}
+                    </label>
+                    <div className="flex justify-between items-center">
+                      <span className="text-xl font-bold font-mono text-white">
+                        {(() => {
+                          const price = data.prices[converterAsset as keyof typeof data.prices] || 0;
+                          const amount = parseFloat(converterAmount) || 0;
+                          if (converterToUsd) {
+                            const val = (amount * price).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+                            if (isNaN(amount * price)) return "$0.00";
+                            return "$" + val;
+                          } else {
+                            const res = price > 0 ? (amount / price).toFixed(6) : "0.000000";
+                            return res;
+                          }
+                        })()}
+                      </span>
+                      <span className="text-[10px] font-bold text-accent uppercase">
+                        {converterToUsd ? 'USD' : converterAsset}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="card mt-6 border-white/5">
                 <div className="flex items-start gap-4">
                   <div className="p-3 bg-accent-blue/10 rounded-lg text-accent">
                     <Info size={24} />
                   </div>
                   <div>
-                    <h4 className="font-semibold mb-1">Risk Management Info</h4>
-                    <p className="text-sm text-secondary">
-                      Ensure your Health Factor stays above 1.0 to avoid liquidation. Liquidations on Voltiq are **reactive**, meaning they are automatically triggered by the Somnia network the moment your position becomes underwater.
+                    <h4 className="font-semibold mb-1 text-primary">Risk Management Info</h4>
+                    <p className="text-xs text-secondary leading-relaxed">
+                      Ensure your Health Factor stays above 1.0 to avoid liquidation. Liquidations on Voltiq are <b>reactive</b>, meaning they are automatically triggered by the Somnia network the moment your position becomes underwater. Use the converter above to ensure your deposits meet minimum safety requirements.
                     </p>
                   </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'profile' && (
+            <div className="max-w-px-1000 mx-auto">
+              <div className="grid grid-cols-12 gap-8">
+                
+                {/* USER INFO HEADER - Centered Hero Style */}
+                <div className="col-span-12 card flex flex-col items-center text-center p-10 bg-panel relative overflow-hidden">
+                  <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-accent to-transparent opacity-50"></div>
+                  <div className="w-24 h-24 rounded-full bg-surface border-4 border-white/5 flex items-center justify-center mb-6 shadow-2xl">
+                    <User size={48} className="text-accent" />
+                  </div>
+                  <div>
+                    <h2 className="text-3xl font-bold mb-2">User Profile</h2>
+                    <p className="text-xs font-mono text-secondary mb-8 transition-colors hover:text-primary">
+                      {walletAddress || '0x5c157083e40688aa91d92ffcf6b2f94c3641c8c2' /* Fallback for demo */}
+                    </p>
+                    <div className="flex justify-center gap-4">
+                      <span className="badge badge-safe px-4">Verified User</span>
+                      <span className="badge badge-neutral px-4">Somnia Mainnet</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* ASSET DISTRIBUTION */}
+                <div className="col-span-12 lg:col-span-5 card">
+                  <div className="card-header">
+                    <h3 className="card-title text-lg"><PieChart size={20} className="text-accent" /> Asset Distribution</h3>
+                  </div>
+                  
+                  <div className="chart-container mb-8">
+                    {data.collateralDistribution.map((item, i) => (
+                      <div 
+                        key={i} 
+                        style={{ width: `${item.percentage}%`, backgroundColor: item.color }} 
+                        title={`${item.asset}: ${item.percentage}%`} 
+                      />
+                    ))}
+                  </div>
+                  
+                  <div className="flex flex-col gap-3">
+                    {data.collateralDistribution.map((item, i) => (
+                      <div key={i} className="flex flex-col bg-surface-hover rounded-xl p-4 border border-white/5 transition-all hover:border-white/10">
+                        <div className="flex justify-between items-center mb-1">
+                          <div className="flex items-center gap-3">
+                            <span className="w-3 h-3 rounded-full" style={{ backgroundColor: item.color }} />
+                            <span className="font-semibold text-secondary">{item.asset}</span>
+                          </div>
+                          <span className="font-bold font-mono">{item.percentage}%</span>
+                        </div>
+                        <div className="text-xs text-muted font-mono flex justify-end">
+                          {item.amount?.toFixed(4) || "0.0000"} {item.asset}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* USER ACTIVITY */}
+                <div className="col-span-12 lg:col-span-7 card border-accent/20">
+                  <div className="card-header">
+                    <h3 className="card-title text-lg text-accent"><Activity size={20} /> User Activity Feed</h3>
+                    <div className="live-indicator">
+                      <span className="dot pulse"></span>
+                      Direct Sync
+                    </div>
+                  </div>
+                  <div className="flex flex-col gap-4 min-h-[300px]">
+                    {reactiveEvents.length === 0 ? (
+                      <div className="text-center py-20 opacity-40">
+                        <Database size={40} className="mx-auto mb-4" />
+                        <p className="text-base font-semibold">No Recent Activity</p>
+                        <p className="text-xs mt-2 text-secondary uppercase tracking-widest px-10 leading-loose">On-chain actions will appear here automatically via Somnia Reactivity</p>
+                      </div>
+                    ) : (
+                      <>
+                        {reactiveEvents.slice(0, 8).map(event => (
+                          <div key={event.id} className={`p-4 rounded-xl border bg-surface-hover flex flex-col gap-2 transition-all animate-in slide-in-from-right-4 duration-300 ${event.type === 'LIQUIDATION' ? 'border-danger/30 bg-danger/5' : 'border-white/5'} hover:border-white/10`}>
+                            <div className="flex justify-between items-center">
+                              <span className={`text-[10px] font-extrabold uppercase tracking-widest ${event.type === 'LIQUIDATION' ? 'text-danger' : 'text-accent'}`}>
+                                {event.type.replace('_', ' ')}
+                              </span>
+                              <span className="text-[10px] text-muted font-mono">{event.timestamp}</span>
+                            </div>
+                            {event.type === 'USER_CHECKED' && (
+                              <div className="text-xs leading-relaxed">
+                                <span className="text-secondary">Vault status changed:</span> Detected Health Factor <span className={`font-mono font-bold ${Number(event.hf) < 1.1 ? 'text-danger' : 'text-safe'}`}>{event.hf}</span>
+                              </div>
+                            )}
+                            {event.type === 'LIQUIDATION' && (
+                              <div className="text-xs font-bold text-danger">
+                                ⚠️ PROTOCOL ACTION: COLLATERAL SEIZED DUE TO RISK
+                              </div>
+                            )}
+                            {event.type === 'SYNC_SUCCESS' && (
+                              <div className="text-xs text-secondary">
+                                Monitored portfolio status successfully on-chain
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                        {reactiveEvents.length > 8 && (
+                          <button 
+                            className="btn btn-secondary w-full border border-white/5 bg-panel mt-2 py-3" 
+                            onClick={() => setActiveTab('activity')}
+                          >
+                            Explore Complete Records ({reactiveEvents.length})
+                          </button>
+                        )}
+                      </>
+                    )}
+                  </div>
+                </div>
+
+                {/* STATS SUMMARY */}
+                <div className="col-span-12 grid grid-cols-12 gap-6 mt-2">
+                   <div className="col-span-4 card flex flex-col items-center justify-center py-8 hover:bg-white/5 transition-colors">
+                      <span className="text-[10px] text-secondary font-bold uppercase mb-2 tracking-widest">Total Assets</span>
+                      <span className="text-2xl font-bold font-mono text-gradient">{formatCurrency(data.collateralUsd)}</span>
+                   </div>
+                   <div className="col-span-4 card flex flex-col items-center justify-center py-8 hover:bg-white/5 transition-colors">
+                      <span className="text-[10px] text-secondary font-bold uppercase mb-2 tracking-widest">Total Debt</span>
+                      <span className="text-2xl font-bold font-mono">{formatCurrency(data.borrowUsd)}</span>
+                   </div>
+                   <div className="col-span-4 card flex flex-col items-center justify-center py-8 hover:bg-white/5 transition-colors">
+                      <span className="text-[10px] text-secondary font-bold uppercase mb-2 tracking-widest">Reliability</span>
+                      <span className="text-2xl font-bold font-mono text-safe">99.99%</span>
+                   </div>
                 </div>
               </div>
             </div>
@@ -1253,6 +1403,98 @@ function App() {
               <Database size={64} className="mb-4" />
               <h3>{activeTab.charAt(0).toUpperCase() + activeTab.slice(1)} Module</h3>
               <p>Coming soon to Voltiq Protocol</p>
+            </div>
+          )}
+
+          {activeTab === 'settings' && (
+            <div className="card max-w-3xl mx-auto mt-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+              <div className="card-header border-b border-white/5 pb-4 mb-6">
+                <h3 className="card-title text-xl text-primary"><Settings size={22} className="text-secondary" /> Protocol Settings</h3>
+              </div>
+              
+              <div className="flex flex-col gap-8">
+                {/* Interface Settings */}
+                <div className="flex flex-col gap-3">
+                  <h4 className="font-semibold text-secondary text-xs uppercase tracking-widest pl-1">Interface Preferences</h4>
+                  <div className="p-4 bg-surface-hover border rounded-xl flex justify-between items-center transition-colors">
+                    <div>
+                      <p className="font-semibold text-primary mb-1">Theme Mode</p>
+                      <p className="text-xs text-secondary">Switch between Dark and Light appearance</p>
+                    </div>
+                    <button className="btn btn-secondary border p-2 rounded-lg" onClick={() => setIsLightMode(!isLightMode)}>
+                      {isLightMode ? <Moon size={18} /> : <Sun size={18} />}
+                    </button>
+                  </div>
+                </div>
+
+                {/* Chrome Extension Settings */}
+                <div className="flex flex-col gap-3">
+                  <h4 className="font-semibold text-secondary text-xs uppercase tracking-widest pl-1">Notifications</h4>
+                  <div className="p-6 bg-surface-hover border rounded-xl flex flex-col md:flex-row gap-6 items-start relative overflow-hidden">
+                    <div className="absolute top-0 right-0 w-64 h-64 bg-brand-primary opacity-5 rounded-full blur-3xl -mr-10 -mt-20 pointer-events-none"></div>
+                    
+                    <div className="p-4 bg-white/5 rounded-2xl border border-white/5 shrink-0 relative z-10">
+                      <Download className="text-accent drop-shadow-lg" size={32} />
+                    </div>
+                    
+                    <div className="flex-1 relative z-10">
+                      <h5 className="font-bold text-lg mb-2 text-primary">Voltiq Chrome Extension</h5>
+                      <p className="text-sm text-secondary mb-5 leading-relaxed">
+                        Stay protected. Get real-time browser alerts connected directly to your positions via Somnia Sub #21168.
+                      </p>
+                      
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-6">
+                        <div className="flex items-center gap-2 text-xs text-secondary">
+                          <ShieldCheck size={14} className="text-safe" /> Instant liquidation alerts
+                        </div>
+                        <div className="flex items-center gap-2 text-xs text-secondary">
+                          <AlertTriangle size={14} className="text-warning" /> Health factor warnings (HF &lt; 1.3)
+                        </div>
+                        <div className="flex items-center gap-2 text-xs text-secondary">
+                          <LineChart size={14} className="text-accent" /> Live oracle price updates
+                        </div>
+                        <div className="flex items-center gap-2 text-xs text-secondary">
+                          <Zap size={14} className="text-safe" /> No extra subscriptions needed
+                        </div>
+                      </div>
+
+                      <div className="flex flex-wrap gap-3">
+                        <a 
+                          href="https://github.com/Pratiksalunke19/voltiq/tree/main/extension" 
+                          target="_blank" 
+                          rel="noopener noreferrer" 
+                          className="btn btn-primary"
+                          style={{ textDecoration: 'none' }}
+                        >
+                          <Download size={16} /> Download Extension
+                        </a>
+                        <a 
+                          href="https://github.com/Pratiksalunke19/voltiq/blob/main/extension/walkthrough.md" 
+                          target="_blank" 
+                          rel="noopener noreferrer" 
+                          className="btn btn-secondary border"
+                          style={{ textDecoration: 'none' }}
+                        >
+                          <Info size={16} className="text-secondary" /> Install Guide
+                        </a>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                
+                {/* Advanced Settings */}
+                <div className="flex flex-col gap-3 opacity-60 hover:opacity-100 transition-opacity">
+                  <h4 className="font-semibold text-secondary text-xs uppercase tracking-widest pl-1">Advanced</h4>
+                  <div className="p-4 bg-surface border rounded-xl flex justify-between items-center cursor-not-allowed">
+                    <div>
+                      <p className="font-semibold text-primary mb-1">Default Slippage Tolerance</p>
+                      <p className="text-xs text-secondary">Advanced routing setting (Coming soon)</p>
+                    </div>
+                    <span className="badge badge-neutral bg-white/5 border-white/10 text-xs px-3">1.0%</span>
+                  </div>
+                </div>
+
+              </div>
             </div>
           )}
 
