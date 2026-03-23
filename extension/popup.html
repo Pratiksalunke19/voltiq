@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Voltiq Alerts</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <div id="app">
+    
+    <!-- HEADER -->
+    <header class="header">
+      <div class="brand">
+        <svg class="brand-icon" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="url(#brandGrad)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <defs>
+            <linearGradient id="brandGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" style="stop-color:#3b82f6" />
+              <stop offset="100%" style="stop-color:#8b5cf6" />
+            </linearGradient>
+          </defs>
+          <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/>
+        </svg>
+        <span class="brand-text">VOLTIQ</span>
+      </div>
+      <div class="header-actions">
+        <button id="btn-settings" class="icon-btn" title="Settings">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+        </button>
+        <button id="btn-refresh" class="icon-btn" title="Refresh">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"></path><path d="M21 3v5h-5"></path><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"></path><path d="M8 16H3v5"></path></svg>
+        </button>
+      </div>
+    </header>
+
+    <!-- TAB BAR -->
+    <nav class="tab-bar">
+      <button class="tab active" data-tab="position">Position</button>
+      <button class="tab" data-tab="events">Activity</button>
+      <button class="tab" data-tab="settings">Settings</button>
+    </nav>
+
+    <!-- ════════════════════════════════ -->
+    <!-- POSITION TAB -->
+    <!-- ════════════════════════════════ -->
+    <div id="tab-position" class="tab-content active">
+      
+      <!-- No address connected -->
+      <div id="no-address" class="empty-state">
+        <div class="empty-icon">
+          <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="var(--text-muted)" stroke-width="1.5"><path d="M19 7V4a1 1 0 0 0-1-1H5a2 2 0 0 0 0 4h15a1 1 0 0 1 1 1v4h-3a2 2 0 0 0 0 4h3v3a1 1 0 0 1-1 1h-1"></path><path d="M3 5v14a2 2 0 0 0 2 2h15"></path></svg>
+        </div>
+        <h3>Connect Your Wallet</h3>
+        <p>Enter your wallet address to start receiving real-time alerts from the Voltiq protocol.</p>
+        <div class="address-input-group">
+          <input 
+            type="text" 
+            id="address-input" 
+            placeholder="0x..." 
+            spellcheck="false"
+          />
+          <button id="btn-connect" class="btn btn-primary">
+            Monitor
+          </button>
+        </div>
+      </div>
+
+      <!-- Position Dashboard -->
+      <div id="position-dashboard" class="hidden">
+        
+        <!-- Connected Address -->
+        <div class="connected-bar">
+          <div class="connected-info">
+            <span class="status-dot"></span>
+            <span id="display-address" class="mono"></span>
+          </div>
+          <button id="btn-disconnect" class="text-btn text-muted" title="Disconnect">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" x2="9" y1="12" y2="12"></line></svg>
+          </button>
+        </div>
+
+        <!-- Health Factor Card -->
+        <div id="hf-card" class="hf-card">
+          <div class="hf-header">
+            <span class="hf-label">Health Factor</span>
+            <span id="hf-badge" class="badge badge-safe">Safe</span>
+          </div>
+          <div class="hf-value-row">
+            <span id="hf-value" class="hf-value">∞</span>
+          </div>
+          <div class="progress-track">
+            <div id="hf-progress" class="progress-fill" style="width: 100%"></div>
+          </div>
+          <p id="hf-note" class="hf-note">No active borrows</p>
+        </div>
+
+        <!-- Position Numbers -->
+        <div class="stats-grid">
+          <div class="stat-card">
+            <span class="stat-label">Collateral</span>
+            <span id="stat-collateral" class="stat-value">$0.00</span>
+          </div>
+          <div class="stat-card">
+            <span class="stat-label">Borrowed</span>
+            <span id="stat-borrowed" class="stat-value">$0.00</span>
+          </div>
+        </div>
+
+        <!-- Live Prices -->
+        <div class="prices-card">
+          <div class="prices-header">
+            <span class="section-label">Live Prices</span>
+            <span class="live-dot"></span>
+          </div>
+          <div class="price-row">
+            <span class="price-symbol">WETH</span>
+            <span id="price-weth" class="price-val mono">--</span>
+          </div>
+          <div class="price-row">
+            <span class="price-symbol">WBTC</span>
+            <span id="price-wbtc" class="price-val mono">--</span>
+          </div>
+        </div>
+
+        <!-- Subscription Info -->
+        <div class="sub-info">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><path d="M12 16v-4"></path><path d="M12 8h.01"></path></svg>
+          <span>Powered by Somnia Sub #21168</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- ════════════════════════════════ -->
+    <!-- EVENTS TAB -->
+    <!-- ════════════════════════════════ -->
+    <div id="tab-events" class="tab-content">
+      <div class="events-header">
+        <span class="section-label">Reactive Activity</span>
+        <button id="btn-clear-events" class="text-btn text-muted text-xs">Clear All</button>
+      </div>
+      <div id="events-list" class="events-list">
+        <div class="empty-state mini">
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--text-muted)" stroke-width="1.5"><path d="M22 12h-4l-3 9L9 3l-3 9H2"></path></svg>
+          <p>No events yet</p>
+          <p class="text-xs text-muted">Events will appear as the protocol reacts</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- ════════════════════════════════ -->
+    <!-- SETTINGS TAB -->
+    <!-- ════════════════════════════════ -->
+    <div id="tab-settings" class="tab-content">
+      <div class="section-label mb-3">Notification Preferences</div>
+      
+      <div class="setting-row">
+        <div class="setting-info">
+          <span class="setting-title">🚨 Liquidation Alerts</span>
+          <span class="setting-desc">Get notified when positions are liquidated</span>
+        </div>
+        <label class="toggle">
+          <input type="checkbox" id="set-liquidations" checked>
+          <span class="toggle-slider"></span>
+        </label>
+      </div>
+
+      <div class="setting-row">
+        <div class="setting-info">
+          <span class="setting-title">⚠️ Health Factor Warnings</span>
+          <span class="setting-desc">Alert when HF drops below 1.3 or 1.05</span>
+        </div>
+        <label class="toggle">
+          <input type="checkbox" id="set-health" checked>
+          <span class="toggle-slider"></span>
+        </label>
+      </div>
+
+      <div class="setting-row">
+        <div class="setting-info">
+          <span class="setting-title">📊 Price Updates</span>
+          <span class="setting-desc">Notify on oracle price change events</span>
+        </div>
+        <label class="toggle">
+          <input type="checkbox" id="set-prices">
+          <span class="toggle-slider"></span>
+        </label>
+      </div>
+
+      <div class="setting-row">
+        <div class="setting-info">
+          <span class="setting-title">📥 Position Changes</span>
+          <span class="setting-desc">Deposits, borrows, repays on your address</span>
+        </div>
+        <label class="toggle">
+          <input type="checkbox" id="set-position" checked>
+          <span class="toggle-slider"></span>
+        </label>
+      </div>
+
+      <div class="setting-divider"></div>
+
+      <div class="setting-row">
+        <div class="setting-info">
+          <span class="setting-title">🔊 Notification Sound</span>
+          <span class="setting-desc">Play sound with system notifications</span>
+        </div>
+        <label class="toggle">
+          <input type="checkbox" id="set-sound" checked>
+          <span class="toggle-slider"></span>
+        </label>
+      </div>
+
+      <div class="settings-footer">
+        <p class="text-xs text-muted">Voltiq Extension v1.0.0</p>
+        <p class="text-xs text-muted">Somnia Testnet • Sub #21168</p>
+      </div>
+    </div>
+
+  </div>
+
+  <script src="popup.js" type="module"></script>
+</body>
+</html>

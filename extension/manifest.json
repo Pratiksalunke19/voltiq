@@ -1,0 +1,33 @@
+{
+  "manifest_version": 3,
+  "name": "Voltiq — DeFi Position Alerts",
+  "version": "1.0.0",
+  "description": "Real-time notifications for your Voltiq DeFi positions. Get alerted on liquidations, health factor changes, price updates, and protocol activity powered by Somnia's reactive subscription.",
+  "permissions": [
+    "storage",
+    "notifications",
+    "alarms",
+    "offscreen"
+  ],
+  "host_permissions": [
+    "https://dream-rpc.somnia.network/*"
+  ],
+  "background": {
+    "service_worker": "background.js",
+    "type": "module"
+  },
+  "action": {
+    "default_popup": "popup.html",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "48": "icons/icon48.png",
+      "128": "icons/icon128.png"
+    },
+    "default_title": "Voltiq Alerts"
+  },
+  "icons": {
+    "16": "icons/icon16.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  }
+}
