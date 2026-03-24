@@ -1,0 +1,49 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;500;600;700;800&display=swap');
+
+:root {
+  --bg-main: #06070a;
+  --bg-sidebar: #0a0b10;
+  --bg-surface: #11131a;
+  --bg-surface-hover: #1a1d27;
+  --border-color: rgba(255, 255, 255, 0.08);
+  
+  --text-primary: #ffffff;
+  --text-secondary: #8b93a7;
+  --text-muted: #5e6578;
+  
+  --brand-primary: #3b82f6; /* Blue */
+  --brand-gradient: linear-gradient(135deg, #3b82f6, #8b5cf6);
+  --brand-glow: rgba(59, 130, 246, 0.4);
+
+  --accent-blue: #3b82f6;
+  --accent-purple: #8b5cf6;
+  --accent-pink: #ec4899;
+  
+  --safe-green: #10b981;
+  --safe-bg: rgba(16, 185, 129, 0.1);
+  --warning-yellow: #f59e0b;
+  --warning-bg: rgba(245, 158, 11, 0.1);
+  --danger-red: #ef4444;
+  --danger-bg: rgba(239, 68, 68, 0.1);
+
+  --font-sans: 'Inter', sans-serif;
+  --font-display: 'Outfit', sans-serif;
+  --font-mono: 'JetBrains Mono', monospace;
+}
+
+[data-theme="light"] {
+  --bg-main: #f8fafc;
+  --bg-sidebar: #ffffff;
+  --bg-surface: #ffffff;
+  --bg-surface-hover: #f1f5f9;
+  --border-color: rgba(0, 0, 0, 0.08);
+
+  --text-primary: #0f172a;
+  --text-secondary: #475569;
+  --text-muted: #94a3b8;
+
+  --brand-glow: rgba(59, 130, 246, 0.2);
+  --safe-bg: rgba(16, 185, 129, 0.15);
+  --warning-bg: rgba(245, 158, 11, 0.15);
+  --danger-bg: rgba(239, 68, 68, 0.15);
+}
