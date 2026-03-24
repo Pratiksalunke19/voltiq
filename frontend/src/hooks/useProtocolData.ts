@@ -82,10 +82,17 @@ export function useProtocolData() {
         usdcToken.balanceOf(address)
       ]);
 
+      const wethWalletUnits = ethers.formatUnits(wethWallet, 18);
+      const wbtcWalletUnits = ethers.formatUnits(wbtcWallet, 18);
+      const usdcWalletUnits = ethers.formatUnits(usdcWallet, 18);
+
       setWalletBalances({
-        WETH: Number(ethers.formatUnits(wethWallet, 18)).toFixed(4),
-        WBTC: Number(ethers.formatUnits(wbtcWallet, 18)).toFixed(4),
-        USDC: Number(ethers.formatUnits(usdcWallet, 18)).toFixed(4)
+        WETH: parseFloat(wethWalletUnits).toFixed(4),
+        WBTC: parseFloat(wbtcWalletUnits).toFixed(4),
+        USDC: parseFloat(usdcWalletUnits).toFixed(4),
+        WETH_FULL: wethWalletUnits,
+        WBTC_FULL: wbtcWalletUnits,
+        USDC_FULL: usdcWalletUnits
       });
 
       const oracle = new ethers.Contract(CONTRACT_ADDRESSES['ORACLE'], ABIS['ChainlinkPriceOracle'], provider);
@@ -107,8 +114,8 @@ export function useProtocolData() {
       }
 
       const collateralDistribution = [
-        { asset: 'WETH', amount: wethAmount, percentage: wethPercentage, color: '#3b82f6' },
-        { asset: 'WBTC', amount: wbtcAmount, percentage: wbtcPercentage, color: '#f59e0b' },
+        { asset: 'WETH', amount: wethAmount, fullAmount: wethFormatted, percentage: wethPercentage, color: '#3b82f6' },
+        { asset: 'WBTC', amount: wbtcAmount, fullAmount: wbtcFormatted, percentage: wbtcPercentage, color: '#f59e0b' },
       ];
 
       setData(prev => ({

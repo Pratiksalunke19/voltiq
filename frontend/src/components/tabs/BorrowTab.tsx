@@ -104,8 +104,16 @@ export default function BorrowTab({
 
               <div className="bg-panel border rounded-lg p-4 mb-6">
                 <div className="flex justify-between text-xs text-secondary mb-1">
-                  <span>Protocol Fee</span>
-                  <span>0.00%</span>
+                  <span>Wallet Balance</span>
+                  <div className="flex items-center gap-2">
+                    <span className="font-mono">{walletBalances[depositAsset] || "0.00"}</span>
+                    <button 
+                      className="text-[10px] bg-accent/20 text-accent px-1.5 py-0.5 rounded hover:bg-accent/30 transition-colors"
+                      onClick={() => setDepositAmount(walletBalances[`${depositAsset}_FULL`] || '')}
+                    >
+                      MAX
+                    </button>
+                  </div>
                 </div>
                 <div className="flex justify-between text-xs text-secondary">
                   <span>Supply APY</span>
@@ -154,16 +162,60 @@ export default function BorrowTab({
                 </div>
               </div>
 
-              <div className="bg-panel border rounded-lg p-4 mb-6">
+              <div className="bg-panel border rounded-lg p-4 mb-2">
                 <div className="flex justify-between text-xs text-secondary mb-1">
                   <span>Supplied Balance</span>
-                  <span className="font-mono">{data.collateralDistribution.find(d => d.asset === withdrawAsset)?.amount?.toFixed(4) || "0.00"}</span>
+                  <div className="flex items-center gap-2">
+                    <span className="font-mono">{data.collateralDistribution.find(d => d.asset === withdrawAsset)?.amount?.toFixed(4) || "0.00"}</span>
+                    <button 
+                      className="text-[10px] bg-accent/20 text-accent px-1.5 py-0.5 rounded hover:bg-accent/30 transition-colors"
+                      onClick={() => setWithdrawAmount(data.collateralDistribution.find(d => d.asset === withdrawAsset)?.fullAmount || '')}
+                    >
+                      MAX
+                    </button>
+                  </div>
                 </div>
                 <div className="flex justify-between text-xs text-secondary">
                   <span>Wallet Balance</span>
                   <span className="font-mono">{walletBalances[withdrawAsset] || "0.00"}</span>
                 </div>
               </div>
+
+              {withdrawAmount && parseFloat(withdrawAmount) > 0 && (
+                <div className="mb-4 p-3 bg-white/5 border border-white/10 rounded-lg animate-in fade-in slide-in-from-top-1 duration-300">
+                  <div className="flex justify-between items-center text-xs mb-1">
+                    <span className="text-secondary">Simulated Health Factor</span>
+                    {(() => {
+                      const asset = data.collateralDistribution.find(d => d.asset === withdrawAsset);
+                      const price = data.prices[withdrawAsset as keyof typeof data.prices] || 0;
+                      const amountToWithdraw = parseFloat(withdrawAmount) || 0;
+                      const simulatedCollateral = data.collateralUsd - (amountToWithdraw * price);
+                      const simulatedHf = data.borrowUsd > 0 ? (simulatedCollateral * 0.8) / data.borrowUsd : 999;
+                      const status = simulatedHf < 1.0 ? 'danger' : simulatedHf < 1.3 ? 'warning' : 'safe';
+                      
+                      return (
+                        <span className={`font-bold font-mono text-${status}`}>
+                          {simulatedHf > 9.9 ? '>9.99' : simulatedHf.toFixed(2)}
+                        </span>
+                      );
+                    })()}
+                  </div>
+                  {(() => {
+                    const asset = data.collateralDistribution.find(d => d.asset === withdrawAsset);
+                    const price = data.prices[withdrawAsset as keyof typeof data.prices] || 0;
+                    const amountToWithdraw = parseFloat(withdrawAmount) || 0;
+                    const simulatedCollateral = data.collateralUsd - (amountToWithdraw * price);
+                    const simulatedHf = data.borrowUsd > 0 ? (simulatedCollateral * 0.8) / data.borrowUsd : 999;
+                    
+                    if (simulatedHf < 1.0) {
+                      return <p className="text-[10px] text-danger">⚠️ This withdrawal will trigger immediate liquidation.</p>;
+                    } else if (simulatedHf < 1.3) {
+                      return <p className="text-[10px] text-warning">⚠️ This withdrawal makes your position high-risk.</p>;
+                    }
+                    return null;
+                  })()}
+                </div>
+              )}
 
               <button 
                 className="btn btn-primary w-full" 

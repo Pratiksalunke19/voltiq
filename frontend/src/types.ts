@@ -10,6 +10,7 @@ export interface PriceData {
 export interface CollateralItem {
   asset: string;
   amount: number;
+  fullAmount: string;
   percentage: number;
   color: string;
 }

@@ -21,8 +21,8 @@ export const MOCK_DATA: ProtocolData = {
     { user: '0xB2...F9E4', healthFactor: 1.06, collateralValue: '$500', borrowValue: '$471' },
   ],
   collateralDistribution: [
-    { asset: 'WETH', amount: 0, percentage: 0, color: '#3b82f6' },
-    { asset: 'WBTC', amount: 0, percentage: 0, color: '#f59e0b' },
+    { asset: 'WETH', amount: 0, fullAmount: '0', percentage: 0, color: '#3b82f6' },
+    { asset: 'WBTC', amount: 0, fullAmount: '0', percentage: 0, color: '#f59e0b' },
   ],
   sysHealthFactor: 1.84,
   liquidations24h: '$124,500'

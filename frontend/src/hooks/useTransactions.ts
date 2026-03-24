@@ -37,9 +37,10 @@ export function useTransactions({
       let tx = await token.approve(CONTRACT_ADDRESSES['LendingPool'], ethers.MaxUint256);
       await tx.wait();
 
+      const cleanAmount = depositAmount.replace(/,/g, '').trim();
       const lendingPool = new ethers.Contract(CONTRACT_ADDRESSES['LendingPool'], ABIS['LendingPool'], signer);
-      console.log(`Depositing ${depositAmount} ${depositAsset}...`);
-      tx = await lendingPool.deposit(assetAddr, ethers.parseEther(depositAmount));
+      console.log(`Depositing ${cleanAmount} ${depositAsset}...`);
+      tx = await lendingPool.deposit(assetAddr, ethers.parseEther(cleanAmount));
       await tx.wait();
       
       await fetchUserData(walletAddress, provider);
@@ -58,16 +59,23 @@ export function useTransactions({
       const assetAddr = CONTRACT_ADDRESSES[withdrawAsset as keyof typeof CONTRACT_ADDRESSES];
       
       const lendingPool = new ethers.Contract(CONTRACT_ADDRESSES['LendingPool'], ABIS['LendingPool'], signer);
-      console.log(`Withdrawing ${withdrawAmount} ${withdrawAsset}...`);
-      let tx = await lendingPool.withdraw(assetAddr, ethers.parseEther(withdrawAmount));
+      const cleanAmount = withdrawAmount.replace(/,/g, '').trim();
+      console.log(`Withdrawing ${cleanAmount} ${withdrawAsset}...`);
+      let tx = await lendingPool.withdraw(assetAddr, ethers.parseEther(cleanAmount));
       await tx.wait();
       
       await fetchUserData(walletAddress, provider);
       onSuccess();
       alert("Withdraw successful!");
-    } catch(err) {
+    } catch(err: any) {
       console.error("Withdraw failed!", err);
-      alert("Withdraw failed. Check console.");
+      let msg = "Withdraw failed. Check console.";
+      if (err.data?.message?.includes("HealthFactorTooLow") || err.message?.includes("HealthFactorTooLow")) {
+        msg = "Withdrawal failed: Health Factor would drop below 1.0! Try a smaller amount or repay debt first.";
+      } else if (err.message?.includes("user rejected")) {
+        msg = "Transaction rejected by user.";
+      }
+      alert(msg);
     }
   }, [walletAddress, provider, fetchUserData]);
 
@@ -77,9 +85,10 @@ export function useTransactions({
       const signer = await provider.getSigner();
       const assetAddr = CONTRACT_ADDRESSES[borrowAsset as keyof typeof CONTRACT_ADDRESSES];
       
+      const cleanAmount = borrowAmount.replace(/,/g, '').trim();
       const lendingPool = new ethers.Contract(CONTRACT_ADDRESSES['LendingPool'], ABIS['LendingPool'], signer);
-      console.log(`Borrowing ${borrowAmount} ${borrowAsset}...`);
-      let tx = await lendingPool.borrow(assetAddr, ethers.parseEther(borrowAmount));
+      console.log(`Borrowing ${cleanAmount} ${borrowAsset}...`);
+      let tx = await lendingPool.borrow(assetAddr, ethers.parseEther(cleanAmount));
       await tx.wait();
       
       await fetchUserData(walletAddress, provider);
@@ -102,9 +111,10 @@ export function useTransactions({
       let tx = await token.approve(CONTRACT_ADDRESSES['LendingPool'], ethers.MaxUint256);
       await tx.wait();
 
+      const cleanAmount = repayAmount.replace(/,/g, '').trim();
       const lendingPool = new ethers.Contract(CONTRACT_ADDRESSES['LendingPool'], ABIS['LendingPool'], signer);
-      console.log(`Repaying ${repayAmount} ${repayAsset}...`);
-      tx = await lendingPool.repay(assetAddr, ethers.parseEther(repayAmount));
+      console.log(`Repaying ${cleanAmount} ${repayAsset}...`);
+      tx = await lendingPool.repay(assetAddr, ethers.parseEther(cleanAmount));
       await tx.wait();
       
       await fetchUserData(walletAddress, provider);
