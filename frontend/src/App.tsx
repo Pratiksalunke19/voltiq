@@ -58,6 +58,7 @@ function App() {
 
   const {
     handleDeposit,
+    handleWithdraw,
     handleBorrow,
     handleRepay,
     handleMint,
@@ -133,6 +134,7 @@ function App() {
               borrowMode={borrowMode}
               setBorrowMode={setBorrowMode}
               handleDeposit={handleDeposit}
+              handleWithdraw={handleWithdraw}
               handleBorrow={handleBorrow}
               handleRepay={handleRepay}
             />
@@ -142,8 +144,6 @@ function App() {
             <ProfileTab
               data={data}
               walletAddress={walletAddress}
-              reactiveEvents={reactiveEvents}
-              setActiveTab={setActiveTab}
             />
           )}
 

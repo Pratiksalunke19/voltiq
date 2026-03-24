@@ -1,10 +1,10 @@
 import {
   ShieldAlert, ShieldCheck, Activity, Sliders,
   AlertTriangle, LineChart, Zap, RefreshCcw,
-  ArrowUpRight, Database
+  Database, Info, ExternalLink
 } from 'lucide-react';
 import type { ProtocolData, ReactiveEvent, Tab } from '../../types';
-import { formatCurrency, getHealthStatus } from '../../utils';
+import { formatCurrency, getHealthStatus, truncateAddress } from '../../utils';
 
 interface DashboardTabProps {
   data: ProtocolData;
@@ -62,6 +62,10 @@ export default function DashboardTab({
   const simDebt = Math.max(0, data.borrowUsd + simBorrowDebt - simRepayAmount);
   const simHf = simDebt > 0 ? (simCollateral * 0.8) / simDebt : (simCollateral > 0 ? 9.99 : 0);
   const simStatus = getHealthStatus(simHf);
+
+  const reactivityOnlyEvents = reactiveEvents.filter(e => 
+    ['USER_CHECKED', 'LIQUIDATION', 'SYNC_SUCCESS', 'PRICE_UPDATE'].includes(e.type)
+  );
 
   return (
     <div className="dashboard-grid">
@@ -170,56 +174,79 @@ export default function DashboardTab({
       {/* LIVE REACTIVITY FEED */}
       <div className="col-span-12 lg:col-span-12 card border-accent/20">
         <div className="card-header">
-          <h3 className="card-title text-lg text-accent"><Activity size={20} /> Live Reactivity Feed</h3>
+          <h3 className="card-title text-accent"><Activity size={18} /> Live Activity</h3>
           <div className="live-indicator">
             <span className="dot pulse"></span>
-            Direct Sync
+            Reactivity Active
           </div>
         </div>
-        <div className="flex flex-col gap-4 min-h-[300px]">
-          {reactiveEvents.length === 0 ? (
-            <div className="text-center py-20 opacity-40">
-              <Database size={40} className="mx-auto mb-4" />
-              <p className="text-base font-semibold">No Recent Activity</p>
-              <p className="text-xs mt-2 text-secondary uppercase tracking-widest px-10 leading-loose">On-chain actions will appear here automatically via Somnia Reactivity</p>
+        <div className="flex flex-col gap-3 max-h-[400px] overflow-y-auto pr-1 flex-1 custom-scrollbar">
+          {reactivityOnlyEvents.length === 0 ? (
+            <div className="text-center py-10 opacity-40">
+              <Database size={32} className="mx-auto mb-2" />
+              <p className="text-sm">Waiting for Somnia events...</p>
+              <p className="text-[10px] mt-1 text-secondary uppercase tracking-widest">Oracle update will trigger Keeper</p>
             </div>
           ) : (
             <>
-              {reactiveEvents.slice(0, 4).map(event => (
-                <div key={event.id} className={`p-4 rounded-xl border bg-surface-hover flex flex-col gap-2 transition-all animate-in slide-in-from-right-4 duration-300 ${event.type === 'LIQUIDATION' ? 'border-danger/30 bg-danger/5' : 'border-white/5'} hover:border-white/10`}>
+              {reactivityOnlyEvents.slice(0, 5).map(event => (
+                <div key={event.id} className={`p-3 rounded-lg border bg-surface-hover flex flex-col gap-1 transition-all animate-in slide-in-from-right-4 duration-300 ${event.type === 'LIQUIDATION' ? 'border-danger/30 bg-danger/5' : 'border-white/5'}`}>
                   <div className="flex justify-between items-center">
-                    <span className={`text-[10px] font-extrabold uppercase tracking-widest ${event.type === 'LIQUIDATION' ? 'text-danger' : 'text-accent'}`}>
+                    <span className={`text-[10px] font-bold uppercase tracking-wider ${event.type === 'LIQUIDATION' ? 'text-danger' : 'text-accent'}`}>
                       {event.type.replace('_', ' ')}
                     </span>
-                    <span className="text-[10px] text-muted font-mono">{event.timestamp}</span>
+                    <div className="flex items-center gap-2">
+                      <span className="text-[10px] text-muted font-mono">{event.timestamp}</span>
+                      { (
+                        <a 
+                          href={`https://shannon-explorer.somnia.network/tx/${event.txHash}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-muted hover:text-accent transition-colors"
+                          title="View on Shannon Explorer"
+                        >
+                          <ExternalLink size={20} />
+                        </a>
+                      )}
+                    </div>
                   </div>
                   {event.type === 'USER_CHECKED' && (
-                    <div className="text-xs leading-relaxed">
-                      <span className="text-secondary">Vault status changed:</span> Detected Health Factor <span className={`font-mono font-bold ${Number(event.hf) < 1.1 ? 'text-danger' : 'text-safe'}`}>{event.hf}</span>
+                    <div className="text-xs">
+                      <span className="text-secondary">User:</span> <span className="font-mono">{truncateAddress(event.user || '')}</span>
+                      <br />
+                      <span className="text-secondary">Health Factor:</span> <span className={`font-mono font-bold ${Number(event.hf) < 1 ? 'text-danger' : 'text-safe'}`}>{event.hf}</span>
                     </div>
                   )}
                   {event.type === 'LIQUIDATION' && (
                     <div className="text-xs font-bold text-danger">
-                      ⚠️ PROTOCOL ACTION: COLLATERAL SEIZED DUE TO RISK
+                      ⚠️ AUTO-LIQUIDATING {truncateAddress(event.user || '')}
                     </div>
                   )}
                   {event.type === 'SYNC_SUCCESS' && (
                     <div className="text-xs text-secondary">
-                      Monitored portfolio status successfully on-chain
+                      Reactivity Engine synced {event.count} monitored users
                     </div>
                   )}
                 </div>
               ))}
-              {reactiveEvents.length > 4 && (
+              {reactivityOnlyEvents.length > 5 && (
                 <button 
-                  className="btn btn-secondary w-full border border-white/5 bg-panel mt-2 py-3" 
+                  className="btn btn-secondary w-full border border-white/5 bg-panel" 
+                  style={{ padding: '0.5rem', fontSize: '0.75rem', marginTop: '0.25rem' }}
                   onClick={() => setActiveTab('activity')}
                 >
-                  Explore Complete Records ({reactiveEvents.length})
+                  View All Activity Logs ({reactivityOnlyEvents.length})
                 </button>
               )}
             </>
           )}
+        </div>
+        
+        <div className="mt-4 pt-4 border-t border-white/5">
+          <div className="flex items-center gap-2 text-[10px] text-muted uppercase tracking-widest">
+            <Info size={12} />
+            <span>Powered by Somnia Sub #21168</span>
+          </div>
         </div>
       </div>
       
@@ -296,7 +323,7 @@ export default function DashboardTab({
             </div>
           </div>
 
-          <div className="flex gap-4 mt-2">
+          {/* <div className="flex gap-4 mt-2">
             <button className="flex-1 p-3 rounded-lg border border-white/5 bg-surface-hover hover:border-accent/40 transition-all text-left group">
               <div className="text-accent font-bold text-sm flex items-center gap-1 group-hover:text-white transition-colors">
                 Get exact recommendation <ArrowUpRight size={14} className="group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
@@ -309,7 +336,7 @@ export default function DashboardTab({
               </div>
               <div className="text-[10px] text-muted">Plain-language breakdown</div>
             </button>
-          </div>
+          </div> */}
         </div>
       </div>
 
@@ -414,11 +441,11 @@ export default function DashboardTab({
       </div>
       <div className="col-span-12 lg:col-span-3 stat-card">
         <h4 className="text-sm font-semibold text-secondary uppercase tracking-wide">Sys Health Factor</h4>
-        <div className="stat-value text-safe">1.84</div>
+        <div className="stat-value text-safe">{data.sysHealthFactor.toFixed(2)}</div>
       </div>
       <div className="col-span-12 lg:col-span-3 stat-card">
         <h4 className="text-sm font-semibold text-secondary uppercase tracking-wide">24h Liquidations</h4>
-        <div className="stat-value text-danger">$124.5K</div>
+        <div className="stat-value text-danger">{data.liquidations24h}</div>
       </div>
     </div>
   );

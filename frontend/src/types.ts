@@ -3,7 +3,6 @@ export type Tab = 'dashboard' | 'borrow' | 'profile' | 'markets' | 'liquidations
 export interface PriceData {
   WETH: number;
   WBTC: number;
-  LINK: number;
   USDC?: number;
   [key: string]: number | undefined;
 }
@@ -30,6 +29,8 @@ export interface ProtocolData {
     borrowValue: string;
   }>;
   collateralDistribution: CollateralItem[];
+  sysHealthFactor: number;
+  liquidations24h: string;
 }
 
 export interface ReactiveEvent {

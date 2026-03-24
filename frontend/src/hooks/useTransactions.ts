@@ -51,6 +51,26 @@ export function useTransactions({
     }
   }, [walletAddress, provider, fetchUserData]);
 
+  const handleWithdraw = useCallback(async (withdrawAmount: string, withdrawAsset: string, onSuccess: () => void) => {
+    if (!walletAddress || !provider || !withdrawAmount) return;
+    try {
+      const signer = await provider.getSigner();
+      const assetAddr = CONTRACT_ADDRESSES[withdrawAsset as keyof typeof CONTRACT_ADDRESSES];
+      
+      const lendingPool = new ethers.Contract(CONTRACT_ADDRESSES['LendingPool'], ABIS['LendingPool'], signer);
+      console.log(`Withdrawing ${withdrawAmount} ${withdrawAsset}...`);
+      let tx = await lendingPool.withdraw(assetAddr, ethers.parseEther(withdrawAmount));
+      await tx.wait();
+      
+      await fetchUserData(walletAddress, provider);
+      onSuccess();
+      alert("Withdraw successful!");
+    } catch(err) {
+      console.error("Withdraw failed!", err);
+      alert("Withdraw failed. Check console.");
+    }
+  }, [walletAddress, provider, fetchUserData]);
+
   const handleBorrow = useCallback(async (borrowAmount: string, borrowAsset: string, onSuccess: () => void) => {
     if (!walletAddress || !provider || !borrowAmount) return;
     try {
@@ -166,6 +186,7 @@ export function useTransactions({
 
   return {
     handleDeposit,
+    handleWithdraw,
     handleBorrow,
     handleRepay,
     handleMint,

@@ -27,8 +27,6 @@ export function useProtocolData() {
         const wbtcPriceBN = await oracle.getPrice(CONTRACT_ADDRESSES['WBTC']);
         const wbtcPriceNum = Number(ethers.formatUnits(wbtcPriceBN, 18));
         
-        const linkPriceNum = Number(ethers.formatUnits(15, 18));
-        
         if (active) {
           if (wethPriceNum > 0) setSimEthPrice(wethPriceNum);
           
@@ -38,7 +36,6 @@ export function useProtocolData() {
               ...prev.prices,
               WETH: wethPriceNum > 0 ? wethPriceNum : prev.prices.WETH,
               WBTC: wbtcPriceNum > 0 ? wbtcPriceNum : prev.prices.WBTC,
-              LINK: linkPriceNum > 0 ? linkPriceNum : prev.prices.LINK,
               USDC: 1.00
             }
           }));
@@ -94,11 +91,8 @@ export function useProtocolData() {
       const oracle = new ethers.Contract(CONTRACT_ADDRESSES['ORACLE'], ABIS['ChainlinkPriceOracle'], provider);
       const wethPriceBN = await oracle.getPrice(CONTRACT_ADDRESSES['WETH']);
       const wbtcPriceBN = await oracle.getPrice(CONTRACT_ADDRESSES['WBTC']);
-      const linkPriceBN = 15;
-      
       const wethPrice = Number(ethers.formatUnits(wethPriceBN, 18));
       const wbtcPrice = Number(ethers.formatUnits(wbtcPriceBN, 18));
-      const linkPrice = Number(ethers.formatUnits(linkPriceBN, 18));
       
       const wethValueUsd = wethAmount * wethPrice;
       const wbtcValueUsd = wbtcAmount * wbtcPrice;
@@ -127,7 +121,6 @@ export function useProtocolData() {
           ...prev.prices,
           WETH: wethPrice,
           WBTC: wbtcPrice,
-          LINK: linkPrice,
           USDC: 1.00
         }
       }));

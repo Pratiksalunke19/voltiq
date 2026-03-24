@@ -1,58 +1,19 @@
 import {
-  User, PieChart, Activity, Database
+  User, PieChart
 } from 'lucide-react';
-import type { ProtocolData, ReactiveEvent, Tab } from '../../types';
+import type { ProtocolData } from '../../types';
 import { formatCurrency } from '../../utils';
 
 interface ProfileTabProps {
   data: ProtocolData;
   walletAddress: string | null;
-  reactiveEvents: ReactiveEvent[];
-  setActiveTab: (tab: Tab) => void;
 }
-
-// Helper functions for event rendering
-const getEventTypeClass = (type: string) => {
-  const map: Record<string, string> = {
-    'LIQUIDATION': 'liquidation', 'MY_LIQUIDATION': 'liquidation',
-    'PRICE_UPDATE': 'price', 'DEPOSITED': 'deposit',
-    'WITHDRAWN': 'withdraw', 'BORROWED': 'borrow',
-    'REPAID': 'repay', 'HF_WARNING': 'hf-warning',
-    'USER_CHECKED': 'hf-warning', 'SYNC_SUCCESS': 'deposit'
-  };
-  return map[type] || '';
-};
-
-const getEventLabel = (type: string) => {
-  const map: Record<string, string> = {
-    'LIQUIDATION': '🚨 Liquidation', 'MY_LIQUIDATION': '⚠️ My Liquidation',
-    'PRICE_UPDATE': '📊 Price Update', 'DEPOSITED': '📥 Deposit',
-    'WITHDRAWN': '📤 Withdraw', 'BORROWED': '💸 Borrow',
-    'REPAID': '💰 Repay', 'USER_CHECKED': '🔍 User Checked',
-    'SYNC_SUCCESS': '🔄 Sync'
-  };
-  return map[type] || type.replace('_', ' ');
-};
-
-const getEventDetail = (e: any) => {
-  switch (e.type) {
-    case 'LIQUIDATION':
-      return <span><strong>{e.user ? e.user.slice(0, 6) + '...' + e.user.slice(-4) : 'User'}</strong> position liquidated at HF <strong>{e.hf}</strong></span>;
-    case 'USER_CHECKED':
-      return <span>Vault status changed: Detected Health Factor <strong className={Number(e.hf) < 1.1 ? 'text-danger' : 'text-safe'}>{e.hf}</strong></span>;
-    case 'SYNC_SUCCESS':
-      return <span>Monitored portfolio status successfully on-chain</span>;
-    default:
-      return <span>{JSON.stringify(e)}</span>;
-  }
-};
 
 export default function ProfileTab({
   data,
   walletAddress,
-  reactiveEvents,
-  setActiveTab,
 }: ProfileTabProps) {
+
   return (
     <div className="max-w-px-1000 mx-auto">
       <div className="grid grid-cols-12 gap-8">
@@ -65,13 +26,13 @@ export default function ProfileTab({
           </div>
           <div>
             <h2 className="text-3xl font-bold mb-2">User Profile</h2>
-            <p className="text-xs font-mono text-secondary mb-8 transition-colors hover:text-primary">
+            <p className="text-md font-mono text-secondary mb-8 transition-colors hover:text-primary">
               {walletAddress || '0x5c157083e40688aa91d92ffcf6b2f94c3641c8c2'}
             </p>
-            <div className="flex justify-center gap-4">
+            {/* <div className="flex justify-center gap-4">
               <span className="badge badge-safe px-4">Verified User</span>
               <span className="badge badge-neutral px-4">Somnia Mainnet</span>
-            </div>
+            </div> */}
           </div>
         </div>
 
@@ -110,20 +71,22 @@ export default function ProfileTab({
         </div>
 
         {/* USER ACTIVITY */}
-        <div className="col-span-12 lg:col-span-7 card border-accent/20">
-          <div className="card-header">
-            <h3 className="card-title text-lg text-accent"><Activity size={20} /> User Activity Feed</h3>
-            <div className="live-indicator">
-              <span className="dot pulse"></span>
-              Direct Sync
-            </div>
+        {/* <div className="col-span-12 lg:col-span-7 card p-0 border-accent/20 bg-[#0d0d12]">
+          <div className="events-header p-4 border-b border-white/5 flex justify-between items-center">
+            <span className="section-label uppercase tracking-widest text-[11px] font-bold text-secondary">User Activity</span>
+            <button 
+              className="px-2 py-0.5 text-[10px] font-medium border border-white/20 rounded-md text-secondary hover:text-white hover:border-white/40 hover:bg-white/5 transition-all" 
+              onClick={() => setIsCleared(true)}
+            >
+              Clear All
+            </button>
           </div>
-          <div className="flex flex-col gap-4 min-h-[300px]">
-            {reactiveEvents.length === 0 ? (
-              <div className="text-center py-20 opacity-40">
-                <Database size={40} className="mx-auto mb-4" />
-                <p className="text-base font-semibold">No Recent Activity</p>
-                <p className="text-xs mt-2 text-secondary uppercase tracking-widest px-10 leading-loose">On-chain actions will appear here automatically via Somnia Reactivity</p>
+          <div className="events-list p-2 flex flex-col gap-2 min-h-[300px] overflow-y-auto max-h-[400px]">
+            {(isCleared || reactiveEvents.length === 0) ? (
+              <div className="empty-state mini text-center py-10 opacity-60">
+                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--text-muted)" strokeWidth="1.5" className="mx-auto mb-2"><path d="M22 12h-4l-3 9L9 3l-3 9H2"></path></svg>
+                <p className="text-sm font-semibold mb-1">No events yet</p>
+                <p className="text-xs text-muted">Events will appear as the protocol reacts</p>
               </div>
             ) : (
               <>
@@ -131,18 +94,18 @@ export default function ProfileTab({
                   const typeClass = getEventTypeClass(event.type);
                   
                   return (
-                    <div key={event.id} className={`event-item ${typeClass ? `event-${typeClass}` : ''}`}>
-                      <div className="event-top">
-                        <span className={`event-type type-${typeClass}`}>{getEventLabel(event.type)}</span>
-                        <span className="event-time">{event.timestamp}</span>
+                    <div key={event.id} className={`event-item ${typeClass ? `event-${typeClass}` : ''} bg-panel rounded-xl p-3 border border-white/5`}>
+                      <div className="event-top flex justify-between items-center mb-1">
+                        <span className={`event-type type-${typeClass} font-bold text-xs uppercase tracking-wider`}>{getEventLabel(event.type)}</span>
+                        <span className="event-time text-xs font-mono text-muted">{timeAgo(event.timestamp)}</span>
                       </div>
-                      <div className="event-detail">{getEventDetail(event)}</div>
+                      <div className="event-detail text-sm text-secondary">{getEventDetail(event)}</div>
                     </div>
                   );
                 })}
                 {reactiveEvents.length > 8 && (
                   <button 
-                    className="btn btn-secondary w-full border border-white/5 bg-panel mt-2 py-3" 
+                    className="btn btn-secondary w-full border border-white/5 bg-surface mt-2 py-3 text-xs" 
                     onClick={() => setActiveTab('activity')}
                   >
                     Explore Complete Records ({reactiveEvents.length})
@@ -151,7 +114,7 @@ export default function ProfileTab({
               </>
             )}
           </div>
-        </div>
+        </div> */}
 
         {/* STATS SUMMARY */}
         <div className="col-span-12 grid grid-cols-12 gap-6 mt-2">

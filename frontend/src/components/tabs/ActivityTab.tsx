@@ -1,4 +1,4 @@
-import { Activity, ArrowDownLeft, Database } from 'lucide-react';
+import { Activity, ArrowDownLeft, Database, ExternalLink } from 'lucide-react';
 import type { ReactiveEvent, Tab } from '../../types';
 
 interface ActivityTabProps {
@@ -35,7 +35,20 @@ export default function ActivityTab({
                 <span className={`text-xs font-bold uppercase tracking-wider ${event.type === 'LIQUIDATION' ? 'text-danger' : 'text-accent'}`}>
                   {event.type.replace('_', ' ')}
                 </span>
-                <span className="text-xs text-muted font-mono">{event.timestamp}</span>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-muted font-mono">{event.timestamp}</span>
+                  {event.txHash && (
+                    <a 
+                      href={`https://shannon-explorer.somnia.network/tx/${event.txHash}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-muted hover:text-accent transition-colors"
+                      title="View on Shannon Explorer"
+                    >
+                      <ExternalLink size={14} />
+                    </a>
+                  )}
+                </div>
               </div>
               
               {event.type === 'USER_CHECKED' && (

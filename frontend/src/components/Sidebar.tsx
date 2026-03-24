@@ -1,6 +1,6 @@
 import {
   Zap, LayoutDashboard, ArrowRightLeft, User,
-  Coins, Settings, ShieldCheck
+  Coins, Settings
 } from 'lucide-react';
 import type { Tab } from '../types';
 
@@ -41,12 +41,12 @@ export default function Sidebar({ activeTab, setActiveTab, isCollapsed }: Sideba
           <span>Settings</span>
         </div>
       </nav>
-      <div className="sidebar-footer">
+      {/* <div className="sidebar-footer">
         <p>Voltiq Protocol v1.0.0</p>
         <p className="mt-1 flex items-center gap-1 text-safe">
           <ShieldCheck size={14} /> Audited
         </p>
-      </div>
+      </div> */}
     </aside>
   );
 }

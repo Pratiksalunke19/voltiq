@@ -13,6 +13,7 @@ interface BorrowTabProps {
   borrowMode: 'borrow' | 'repay';
   setBorrowMode: (mode: 'borrow' | 'repay') => void;
   handleDeposit: (amount: string, asset: string, onSuccess: () => void) => void;
+  handleWithdraw: (amount: string, asset: string, onSuccess: () => void) => void;
   handleBorrow: (amount: string, asset: string, onSuccess: () => void) => void;
   handleRepay: (amount: string, asset: string, onSuccess: () => void) => void;
 }
@@ -24,11 +25,15 @@ export default function BorrowTab({
   borrowMode,
   setBorrowMode,
   handleDeposit,
+  handleWithdraw,
   handleBorrow,
   handleRepay,
 }: BorrowTabProps) {
   const [depositAmount, setDepositAmount] = useState('');
   const [depositAsset, setDepositAsset] = useState('WETH');
+  const [supplyMode, setSupplyMode] = useState<'supply' | 'withdraw'>('supply');
+  const [withdrawAmount, setWithdrawAmount] = useState('');
+  const [withdrawAsset, setWithdrawAsset] = useState('WETH');
   const [borrowAmount, setBorrowAmount] = useState('');
   const [borrowAsset, setBorrowAsset] = useState('USDC');
   const [repayAmount, setRepayAmount] = useState('');
@@ -45,55 +50,130 @@ export default function BorrowTab({
         
         {/* DEPOSIT CARD */}
         <div className="flex-1 card">
-          <div className="card-header">
-            <h3 className="card-title"><ArrowUpRight size={20} className="text-safe" /> Supply Assets</h3>
-          </div>
-          <p className="text-sm text-secondary mb-6">Supply assets as collateral to start borrowing against them.</p>
-          
-          <div className="form-group">
-            <label className="input-label">Select Asset</label>
-            <select 
-              className="select-field" 
-              value={depositAsset} 
-              onChange={(e) => setDepositAsset(e.target.value)}
+          <div className="mode-toggle">
+            <div 
+              className="mode-toggle-indicator" 
+              style={{ transform: supplyMode === 'withdraw' ? 'translateX(100%)' : 'translateX(0)' }} 
+            />
+            <button 
+              className={`mode-toggle-btn ${supplyMode === 'supply' ? 'active' : ''}`}
+              onClick={() => setSupplyMode('supply')}
             >
-              <option value="WETH">WETH</option>
-              <option value="WBTC">WBTC</option>
-            </select>
+              Supply
+            </button>
+            <button 
+              className={`mode-toggle-btn ${supplyMode === 'withdraw' ? 'active' : ''}`}
+              onClick={() => setSupplyMode('withdraw')}
+            >
+              Withdraw
+            </button>
           </div>
 
-          <div className="form-group">
-            <label className="input-label">Amount</label>
-            <div className="input-group">
-              <input 
-                type="number" 
-                className="input-field" 
-                placeholder="0.00" 
-                value={depositAmount} 
-                onChange={(e) => setDepositAmount(e.target.value)}
-              />
-              <span className="input-suffix">{depositAsset}</span>
-            </div>
-          </div>
+          {supplyMode === 'supply' ? (
+            <>
+              <div className="card-header border-none p-0 mb-4">
+                <h3 className="card-title"><ArrowUpRight size={20} className="text-safe" /> Supply Assets</h3>
+              </div>
+              <p className="text-sm text-secondary mb-6">Supply assets as collateral to start borrowing against them.</p>
+              
+              <div className="form-group">
+                <label className="input-label">Select Asset</label>
+                <select 
+                  className="select-field" 
+                  value={depositAsset} 
+                  onChange={(e) => setDepositAsset(e.target.value)}
+                >
+                  <option value="WETH">WETH</option>
+                  <option value="WBTC">WBTC</option>
+                </select>
+              </div>
 
-          <div className="bg-panel border rounded-lg p-4 mb-6">
-            <div className="flex justify-between text-xs text-secondary mb-1">
-              <span>Protocol Fee</span>
-              <span>0.00%</span>
-            </div>
-            <div className="flex justify-between text-xs text-secondary">
-              <span>Supply APY</span>
-              <span className="text-safe">+2.4%</span>
-            </div>
-          </div>
+              <div className="form-group">
+                <label className="input-label">Amount</label>
+                <div className="input-group">
+                  <input 
+                    type="number" 
+                    className="input-field" 
+                    placeholder="0.00" 
+                    value={depositAmount} 
+                    onChange={(e) => setDepositAmount(e.target.value)}
+                  />
+                  <span className="input-suffix">{depositAsset}</span>
+                </div>
+              </div>
 
-          <button 
-            className="btn btn-primary w-full" 
-            onClick={() => handleDeposit(depositAmount, depositAsset, () => setDepositAmount(''))}
-            disabled={!walletAddress || !depositAmount}
-          >
-            Supply {depositAsset}
-          </button>
+              <div className="bg-panel border rounded-lg p-4 mb-6">
+                <div className="flex justify-between text-xs text-secondary mb-1">
+                  <span>Protocol Fee</span>
+                  <span>0.00%</span>
+                </div>
+                <div className="flex justify-between text-xs text-secondary">
+                  <span>Supply APY</span>
+                  <span className="text-safe">+2.4%</span>
+                </div>
+              </div>
+
+              <button 
+                className="btn btn-primary w-full" 
+                onClick={() => handleDeposit(depositAmount, depositAsset, () => setDepositAmount(''))}
+                disabled={!walletAddress || !depositAmount}
+              >
+                Supply {depositAsset}
+              </button>
+            </>
+          ) : (
+            <>
+              <div className="card-header border-none p-0 mb-4">
+                <h3 className="card-title"><ArrowDownLeft size={20} className="text-safe" /> Withdraw Assets</h3>
+              </div>
+              <p className="text-sm text-secondary mb-6">Withdraw your supplied collateral assets from the protocol.</p>
+              
+              <div className="form-group">
+                <label className="input-label">Select Asset</label>
+                <select 
+                  className="select-field" 
+                  value={withdrawAsset} 
+                  onChange={(e) => setWithdrawAsset(e.target.value)}
+                >
+                  <option value="WETH">WETH</option>
+                  <option value="WBTC">WBTC</option>
+                </select>
+              </div>
+
+              <div className="form-group">
+                <label className="input-label">Amount</label>
+                <div className="input-group">
+                  <input 
+                    type="number" 
+                    className="input-field" 
+                    placeholder="0.00" 
+                    value={withdrawAmount} 
+                    onChange={(e) => setWithdrawAmount(e.target.value)}
+                  />
+                  <span className="input-suffix">{withdrawAsset}</span>
+                </div>
+              </div>
+
+              <div className="bg-panel border rounded-lg p-4 mb-6">
+                <div className="flex justify-between text-xs text-secondary mb-1">
+                  <span>Supplied Balance</span>
+                  <span className="font-mono">{data.collateralDistribution.find(d => d.asset === withdrawAsset)?.amount?.toFixed(4) || "0.00"}</span>
+                </div>
+                <div className="flex justify-between text-xs text-secondary">
+                  <span>Wallet Balance</span>
+                  <span className="font-mono">{walletBalances[withdrawAsset] || "0.00"}</span>
+                </div>
+              </div>
+
+              <button 
+                className="btn btn-primary w-full" 
+                onClick={() => handleWithdraw(withdrawAmount, withdrawAsset, () => setWithdrawAmount(''))}
+                disabled={!walletAddress || !withdrawAmount}
+              >
+                Withdraw {withdrawAsset}
+              </button>
+            </>
+          )}
         </div>
 
         {/* BORROW / REPAY CARD */}
@@ -260,7 +340,6 @@ export default function BorrowTab({
                     >
                       <option value="WETH">WETH</option>
                       <option value="WBTC">WBTC</option>
-                      <option value="LINK">LINK</option>
                       <option value="USDC">USDC</option>
                     </select>
                   </div>
