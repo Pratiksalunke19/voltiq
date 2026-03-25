@@ -69,8 +69,10 @@ export function useProtocolData() {
       const wethCollateralBN = await positionManager.sUserCollateral(address, CONTRACT_ADDRESSES['WETH']);
       const wbtcCollateralBN = await positionManager.sUserCollateral(address, CONTRACT_ADDRESSES['WBTC']);
       
-      const wethAmount = Number(ethers.formatUnits(wethCollateralBN, 18));
-      const wbtcAmount = Number(ethers.formatUnits(wbtcCollateralBN, 18));
+      const wethFormatted = ethers.formatUnits(wethCollateralBN, 18);
+      const wbtcFormatted = ethers.formatUnits(wbtcCollateralBN, 18);
+      const wethAmount = Number(wethFormatted);
+      const wbtcAmount = Number(wbtcFormatted);
 
       const wethToken = new ethers.Contract(CONTRACT_ADDRESSES['WETH'], ABIS['MockERC20'], provider);
       const wbtcToken = new ethers.Contract(CONTRACT_ADDRESSES['WBTC'], ABIS['MockERC20'], provider);

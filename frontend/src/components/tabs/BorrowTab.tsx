@@ -186,7 +186,6 @@ export default function BorrowTab({
                   <div className="flex justify-between items-center text-xs mb-1">
                     <span className="text-secondary">Simulated Health Factor</span>
                     {(() => {
-                      const asset = data.collateralDistribution.find(d => d.asset === withdrawAsset);
                       const price = data.prices[withdrawAsset as keyof typeof data.prices] || 0;
                       const amountToWithdraw = parseFloat(withdrawAmount) || 0;
                       const simulatedCollateral = data.collateralUsd - (amountToWithdraw * price);
@@ -201,7 +200,6 @@ export default function BorrowTab({
                     })()}
                   </div>
                   {(() => {
-                    const asset = data.collateralDistribution.find(d => d.asset === withdrawAsset);
                     const price = data.prices[withdrawAsset as keyof typeof data.prices] || 0;
                     const amountToWithdraw = parseFloat(withdrawAmount) || 0;
                     const simulatedCollateral = data.collateralUsd - (amountToWithdraw * price);
