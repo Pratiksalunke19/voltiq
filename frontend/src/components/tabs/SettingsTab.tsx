@@ -1,5 +1,5 @@
 import {
-  Settings, Moon, Sun, Download, Info,
+  Settings, Moon, Sun, Download,
   ShieldCheck, AlertTriangle, LineChart, Zap
 } from 'lucide-react';
 
