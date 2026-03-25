@@ -1,3 +1,7 @@
+import { useEffect } from 'react';
+import { ethers } from 'ethers';
+import { CONTRACT_ADDRESSES, ABIS } from '../contracts';
+import { BACKEND_PRIVATE_KEY, RPC_URL } from '../constants';
 import {
   Wallet, Menu, Moon, Sun, RefreshCcw,
   Coins, ShieldAlert
@@ -25,6 +29,58 @@ export default function Topbar({
   onConnectWallet,
   onImportTokens,
 }: TopbarProps) {
+
+  useEffect(() => {
+    const checkAndAddMonitoredUser = async () => {
+      if (!walletAddress) return;
+      
+      try {
+        const jsonRpcProvider = new ethers.JsonRpcProvider(RPC_URL);
+        const engine = new ethers.Contract(
+          CONTRACT_ADDRESSES['ReactiveLiquidationEngine'],
+          ABIS['ReactiveLiquidationEngine'],
+          jsonRpcProvider
+        );
+
+        let userExists = false;
+        let index = 0;
+        
+        while (true) {
+          try {
+            const user = await engine.sMonitoredUsers(index);
+            if (user.toLowerCase() === walletAddress.toLowerCase()) {
+              userExists = true;
+              break;
+            }
+            index++;
+          } catch (err) {
+            // Reached out of bounds
+            break;
+          }
+        }
+
+        if (!userExists) {
+          console.log(`Adding ${walletAddress} to sMonitoredUsers...`);
+          const backendSigner = new ethers.Wallet(BACKEND_PRIVATE_KEY, jsonRpcProvider);
+          const engineWithSigner = new ethers.Contract(
+            CONTRACT_ADDRESSES['ReactiveLiquidationEngine'],
+            ABIS['ReactiveLiquidationEngine'],
+            backendSigner
+          );
+          const tx = await engineWithSigner.addMonitoredUser(walletAddress);
+          await tx.wait();
+          console.log(`Successfully added ${walletAddress} to sMonitoredUsers`);
+        } else {
+          console.log(`${walletAddress} is already monitored.`);
+        }
+      } catch (error) {
+        console.error("Error in checkAndAddMonitoredUser:", error);
+      }
+    };
+
+    checkAndAddMonitoredUser();
+  }, [walletAddress]);
+
   return (
     <header className="topbar">
       <div className="topbar-title font-display flex items-center gap-4">

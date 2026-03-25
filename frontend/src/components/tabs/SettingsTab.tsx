@@ -66,22 +66,13 @@ export default function SettingsTab({
 
               <div className="flex flex-wrap gap-3">
                 <a 
-                  href="https://github.com/Pratiksalunke19/voltiq/tree/main/extension" 
+                  href="https://github.com/Pratiksalunke19/voltiq/releases/tag/v1.0.0" 
                   target="_blank" 
                   rel="noopener noreferrer" 
                   className="btn btn-primary"
                   style={{ textDecoration: 'none' }}
                 >
                   <Download size={16} /> Download Extension
-                </a>
-                <a 
-                  href="https://github.com/Pratiksalunke19/voltiq/blob/main/extension/walkthrough.md" 
-                  target="_blank" 
-                  rel="noopener noreferrer" 
-                  className="btn btn-secondary border"
-                  style={{ textDecoration: 'none' }}
-                >
-                  <Info size={16} className="text-secondary" /> Install Guide
                 </a>
               </div>
             </div>
