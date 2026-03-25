@@ -1,4 +1,4 @@
-# Voltiq: The First Reactive, Keeperless Liquidation Engine on Somnia
+# Voltiq: Reactive, Keeperless Liquidation Engine on Somnia
 
 Voltiq is a next-generation DeFi lending protocol built to push the boundaries of **Somnia's High-Performance Layer-1**. It leverages **On-Chain Reactivity** to eliminate the need for external liquidation bots (keepers), creating a self-healing, ultra-resilient financial infrastructure.
 
@@ -48,22 +48,52 @@ make -C test notify-update ASSET_ADDR=0x...
 
 ---
 
-## 📡 Subscription Management
+### 🌐 Web Application (Frontend)
+The decentralized application frontend is built with React, Vite, and Ethers.js. To run it locally:
 
-Reactivity on Somnia requires a protocol-level subscription managed via the STT token.
-- **Requirement**: Maintain a minimum balance of **32 STT**.
-- **System Actor**: All reactive liquidations are initiated by the Somnia System Address `0x0100`.
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+### 🧩 Voltiq Chrome Extension
+A companion Chrome/Brave extension provides real-time alerts and a live reactivity feed of on-chain liquidations and status checks.
+
+1. Open Chrome/Brave and navigate to `chrome://extensions/`
+2. Enable **Developer mode** in the top right corner.
+3. Click **Load unpacked** and select the `extension` directory from this repository.
+4. Pin the Voltiq extension for quick access to your Health Factor and Reactivity Logs.
+
+### 📜 Deployment Commands
+To deploy the smart contracts to the Somnia Testnet or a local Anvil instance, you can use the built-in `Makefile` commands:
+
+```bash
+# Deploy to local Anvil
+make deploy
+
+# Deploy to Somnia Testnet
+make deploy-somnia
+```
+
+---
+
+## 📁 Repository Structure
+
+- `src/`: Core protocol Solidity smart contracts (`LendingPool.sol`, `PositionManager.sol`, `ReactiveLiquidationEngine.sol`).
+- `test/`: Foundry-based tests and simulation setup for reactive features.
+- `frontend/`: Vite React web application frontend for user interactions and risk simulations.
+- `extension/`: Chrome browser extension for on-the-go reactivity tracking.
+- `script/`: Foundry scripts for contract deployment logic.
+- `deploy_somnia.sh`: Automated deployment shell script specifically for Somnia's environment.
 
 ---
 
 ## 💻 Tech Stack
 - **Blockchain**: Somnia (Testnet)
 - **Reactivity SDK**: `@somnia-chain/reactivity`
-- **Smart Contracts**: Solidity 0.8.30 (Optimized for Somnia)
-- **Frontend**: React + Ethers.js
+- **Smart Contracts**: Solidity 0.8.30 (Foundry, Optimized for Somnia)
+- **Frontend**: React (Vite) + TypeScript + Ethers.js
 - **Design**: Premium Black/Accent Aesthetic with Reactive feedback loops.
 
 ---
-
-## ⚖️ License
-MIT
