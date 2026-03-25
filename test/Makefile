@@ -18,9 +18,15 @@ get-position:
 add-monitor:
 	cast send $(ENGINE) "addMonitoredUser(address)" $(USER_ADDR) --rpc-url $(RPC) --private-key $(PK) --legacy
 
-# 4. Check Monitored Users (Index 0)
+# 4. Check Monitored Users (Usage: INDEX=1)
 check-monitor:
-	cast call $(ENGINE) "sMonitoredUsers(uint256)(address)" 0 --rpc-url $(RPC)
+	@if [ -z "$(INDEX)" ]; then INDEX=0; fi; \
+	cast call $(ENGINE) "sMonitoredUsers(uint256)(address)" $$INDEX --rpc-url $(RPC)
+
+# 4b. Get total monitored users
+monitor-count:
+	@COUNT=$$(cast call $(ENGINE) "sMonitoredUsers()((address[]))" --rpc-url $(RPC) | grep -o "0x" | wc -l); \
+	echo "Total Monitored Users: $$COUNT"
 
 # 5. Set Price on the underlying Mock Aggregator
 set-price:

@@ -48,6 +48,27 @@ make -C test notify-update ASSET_ADDR=0x...
 
 ---
 
+## 🧪 Simulation & Testing Guide
+
+Follow these steps to experience the **Keeperless liquidation** flow on Somnia:
+
+1.  **Fund Your Wallet**: 
+    *   Get Somnia Testnet (ST) gas from the [Somnia Shannon Faucet](https://cloud.google.com/application/web3/faucet/somnia/shannon).
+    *   Connect your wallet to the Voltiq DApp and visit the **Faucet Tab** to mint mock testing assets: `USDC`, `WETH`, and `WBTC`.
+2.  **Supply Collateral**: Supply **5-10 WETH** in the "Supply" section to build your borrowing power.
+3.  **Simulate Risk**:
+    *   Use the **Position Simulator** on the dashboard to determine the exact borrow amount needed to push your **Health Factor (HF)** toward `1.0` or `1.1`.
+    *   Borrow the calculated amount to create a leveraged position.
+4.  **Trigger Liquidation**:
+    *   Use the **PriceFeed Controller** (or the CLI commands above) to manually **decrease the price of WETH**.
+    *   Once your HF drops below `1.0`, the system starts a **10-second reactive timer**. This gives you a final window to see the real-time risk before the on-chain engine strikes. (You can click "Skip Timer" to trigger it instantly).
+5.  **Analyze the Result**:
+    *   Watch as your **Health Factor is restored** automatically by the reactive engine.
+    *   Check the **Live Activity** feed for the "Liquidation" event and click the link to view the atomic reactive cycle on the **Shannon Explorer**.
+6.  **Stay Alert**: Download the **Voltiq Extension** (link found in the DApp Settings) to get push notifications and real-time HF tracking directly in your browser.
+
+---
+
 ### 🌐 Web Application (Frontend)
 The decentralized application frontend is built with React, Vite, and Ethers.js. To run it locally:
 
